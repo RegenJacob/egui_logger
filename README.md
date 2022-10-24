@@ -1,8 +1,13 @@
 ![Crates.io](https://img.shields.io/crates/v/egui_logger)
 ![docs.rs](https://img.shields.io/docsrs/egui_logger)
 
+
+
 # egui_logger
 This library implements [`log`](https://crates.io/crates/log) logging support into [`egui`](https://crates.io/crates/egui) applications.
+
+## Demo
+![demo](images/egui_logger.png "Demo")
 
 ## Example
 
