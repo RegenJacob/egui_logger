@@ -1,5 +1,5 @@
-![Crates.io](https://img.shields.io/crates/v/egui_logger)
-![docs.rs](https://img.shields.io/docsrs/egui_logger)
+[![Crates.io](https://img.shields.io/crates/v/egui_logger)](https://crates.io/crates/egui_logger)
+[![docs.rs](https://img.shields.io/docsrs/egui_logger)](https://docs.rs/egui_logger/latest/egui_logger/)
 
 
 
@@ -28,3 +28,9 @@ Window::new("Log")::show(ctx, |ui| {
 });
 ```
 
+## Contribution
+Feel free to open issues and pull requests.
+
+        
+        
+          
