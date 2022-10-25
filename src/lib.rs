@@ -40,6 +40,7 @@ struct LoggerUi {
     loglevel: log::Level,
     search_term: String,
     copy_text: String,
+    max_log_length: usize,
 }
 
 impl Default for LoggerUi {
@@ -48,6 +49,7 @@ impl Default for LoggerUi {
             loglevel: log::Level::Info,
             search_term: String::new(),
             copy_text: String::new(),
+            max_log_length: 1000,
         }
     }
 }
@@ -55,6 +57,10 @@ impl Default for LoggerUi {
 impl LoggerUi {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         let mut logs = LOG.lock().unwrap();
+
+        logs.reverse();
+        logs.truncate(self.max_log_length);
+        logs.reverse();
 
         ui.horizontal(|ui| {
             if ui.button("Clear").clicked() {
@@ -75,9 +81,20 @@ impl LoggerUi {
             ui.text_edit_singleline(&mut self.search_term);
         });
 
-        if ui.button("Copy").clicked() {
-            ui.output().copied_text = self.copy_text.to_string();
-        }
+        ui.horizontal(|ui| {
+            ui.label("Max Log output");
+            ui.add(egui::widgets::DragValue::new(&mut self.max_log_length).speed(1));
+        });
+
+        ui.horizontal(|ui| {
+            if ui.button("Copy").clicked() {
+                ui.output().copied_text = self.copy_text.to_string();
+            }
+
+            if ui.button("Sort").clicked() {
+                logs.sort()
+            }
+        });
 
         // has to be cleared after every frame
         self.copy_text.clear();
@@ -111,6 +128,9 @@ impl LoggerUi {
                 self.copy_text += &format!("{string} \n").to_string();
             });
         });
+
+        ui.separator();
+        ui.label(format!("Log size: {}", logs.len()));
     }
 }
 
