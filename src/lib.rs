@@ -18,7 +18,7 @@ impl log::Log for EguiLogger {
             let mut l: Vec<(log::Level, String)> = log.clone();
             l.push((record.level(), record.args().to_string()));
 
-            *log = l
+            *log = l;
         }
     }
 
@@ -39,6 +39,7 @@ static LOGGER_UI: once_cell::sync::Lazy<Mutex<LoggerUi>> =
 struct LoggerUi {
     loglevel: log::Level,
     search_term: String,
+    copy_text: String,
 }
 
 impl Default for LoggerUi {
@@ -46,18 +47,18 @@ impl Default for LoggerUi {
         Self {
             loglevel: log::Level::Info,
             search_term: String::new(),
+            copy_text: String::new(),
         }
     }
 }
 
 impl LoggerUi {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Log");
         let mut logs = LOG.lock().unwrap();
 
         ui.horizontal(|ui| {
             if ui.button("Clear").clicked() {
-                *logs = vec![]
+                *logs = vec![];
             }
 
             egui::ComboBox::from_label("Log Level")
@@ -68,10 +69,18 @@ impl LoggerUi {
                     ui.selectable_value(&mut self.loglevel, log::Level::Error, "Error");
                 });
         });
+
         ui.horizontal(|ui| {
             ui.label("Search: ");
             ui.text_edit_singleline(&mut self.search_term);
         });
+
+        if ui.button("Copy").clicked() {
+            ui.output().copied_text = self.copy_text.to_string();
+        }
+
+        // has to be cleared after every frame
+        self.copy_text.clear();
 
         ui.separator();
 
@@ -98,7 +107,9 @@ impl LoggerUi {
                         ui.label(string_format);
                     }
                 }
-            })
+
+                self.copy_text += &format!("{string} \n").to_string();
+            });
         });
     }
 }
