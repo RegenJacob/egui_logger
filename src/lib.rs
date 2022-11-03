@@ -101,7 +101,7 @@ impl LoggerUi {
 
         ui.separator();
 
-        egui::ScrollArea::vertical().auto_shrink([false; 2]).max_height(ui.available_height() - 25.0).show(ui, |ui| {
+        egui::ScrollArea::vertical().auto_shrink([true; 2]).max_height(ui.available_height() - 25.0).show(ui, |ui| {
             logs.iter().for_each(|(level, string)| {
                 let string_format = format!("[{}]: {}", level, string);
 
@@ -129,7 +129,6 @@ impl LoggerUi {
             });
         });
 
-        ui.separator();
         ui.with_layout(egui::Layout::left_to_right(egui::Align::BOTTOM), |ui| {
             ui.label(format!("Log size: {}", logs.len()));
         });
