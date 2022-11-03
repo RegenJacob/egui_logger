@@ -101,33 +101,36 @@ impl LoggerUi {
 
         ui.separator();
 
-        egui::ScrollArea::vertical().auto_shrink([true; 2]).max_height(ui.available_height() - 25.0).show(ui, |ui| {
-            logs.iter().for_each(|(level, string)| {
-                let string_format = format!("[{}]: {}", level, string);
+        egui::ScrollArea::vertical()
+            .auto_shrink([true; 2])
+            .max_height(ui.available_height() - 25.0)
+            .show(ui, |ui| {
+                logs.iter().for_each(|(level, string)| {
+                    let string_format = format!("[{}]: {}", level, string);
 
-                if !self.search_term.is_empty() && !string.contains(&self.search_term) {
-                    return;
-                }
-
-                if &self.loglevel < level {
-                    return;
-                }
-
-                match level {
-                    log::Level::Warn => {
-                        ui.colored_label(Color32::YELLOW, string_format);
+                    if !self.search_term.is_empty() && !string.contains(&self.search_term) {
+                        return;
                     }
-                    log::Level::Error => {
-                        ui.colored_label(Color32::RED, string_format);
-                    }
-                    _ => {
-                        ui.label(string_format);
-                    }
-                }
 
-                self.copy_text += &format!("{string} \n").to_string();
+                    if &self.loglevel < level {
+                        return;
+                    }
+
+                    match level {
+                        log::Level::Warn => {
+                            ui.colored_label(Color32::YELLOW, string_format);
+                        }
+                        log::Level::Error => {
+                            ui.colored_label(Color32::RED, string_format);
+                        }
+                        _ => {
+                            ui.label(string_format);
+                        }
+                    }
+
+                    self.copy_text += &format!("{string} \n").to_string();
+                });
             });
-        });
 
         ui.with_layout(egui::Layout::left_to_right(egui::Align::BOTTOM), |ui| {
             ui.label(format!("Log size: {}", logs.len()));
