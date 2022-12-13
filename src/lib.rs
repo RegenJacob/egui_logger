@@ -87,23 +87,15 @@ impl LoggerUi {
         });
 
         ui.horizontal(|ui| {
-            if ui.button("Copy").clicked() {
-                ui.output().copied_text = self.copy_text.to_string();
-            }
-
             if ui.button("Sort").clicked() {
                 logs.sort()
             }
         });
-
-        // has to be cleared after every frame
-        self.copy_text.clear();
-
         ui.separator();
 
         egui::ScrollArea::vertical()
             .auto_shrink([true; 2])
-            .max_height(ui.available_height() - 25.0)
+            .max_height(ui.available_height() - 30.0)
             .show(ui, |ui| {
                 logs.iter().for_each(|(level, string)| {
                     let string_format = format!("[{}]: {}", level, string);
@@ -132,9 +124,18 @@ impl LoggerUi {
                 });
             });
 
-        ui.with_layout(egui::Layout::left_to_right(egui::Align::BOTTOM), |ui| {
+        ui.horizontal(|ui| {
             ui.label(format!("Log size: {}", logs.len()));
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button("Copy").clicked() {
+                    ui.output().copied_text = self.copy_text.to_string();
+                }
+            });
         });
+
+        // has to be cleared after every frame
+        self.copy_text.clear();
     }
 }
 
