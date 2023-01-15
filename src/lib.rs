@@ -3,6 +3,14 @@ use std::sync::Mutex;
 use egui::Color32;
 use log::SetLoggerError;
 
+const LEVELS: [log::Level; log::Level::Trace as usize] = [
+    log::Level::Error,
+    log::Level::Warn,
+    log::Level::Info,
+    log::Level::Debug,
+    log::Level::Trace,
+];
+
 struct EguiLogger;
 
 impl log::Log for EguiLogger {
@@ -37,7 +45,7 @@ static LOGGER_UI: once_cell::sync::Lazy<Mutex<LoggerUi>> =
     once_cell::sync::Lazy::new(Default::default);
 
 struct LoggerUi {
-    loglevel: log::Level,
+    loglevels: [bool;log::Level::Trace as usize],
     search_term: String,
     copy_text: String,
     max_log_length: usize,
@@ -45,8 +53,9 @@ struct LoggerUi {
 
 impl Default for LoggerUi {
     fn default() -> Self {
+        // Error, Warn and Info
         Self {
-            loglevel: log::Level::Info,
+            loglevels: [true, true, true, false, false],
             search_term: String::new(),
             copy_text: String::new(),
             max_log_length: 1000,
@@ -66,14 +75,15 @@ impl LoggerUi {
             if ui.button("Clear").clicked() {
                 *logs = vec![];
             }
-
-            egui::ComboBox::from_label("Log Level")
-                .selected_text(self.loglevel.to_string())
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut self.loglevel, log::Level::Info, "Info");
-                    ui.selectable_value(&mut self.loglevel, log::Level::Warn, "Warn");
-                    ui.selectable_value(&mut self.loglevel, log::Level::Error, "Error");
-                });
+            ui.label("Log Level");
+            // I didn't find elegant ways to iterate an Enum :(
+            for level in LEVELS
+            {
+                if ui.selectable_label( self.loglevels[level as usize - 1], level.as_str()).clicked()
+                {
+                    self.loglevels[level as usize - 1] = !self.loglevels[level as usize - 1];
+                }
+            }
         });
 
         ui.horizontal(|ui| {
@@ -93,6 +103,9 @@ impl LoggerUi {
         });
         ui.separator();
 
+        // a counter
+        let mut logs_displayed: usize = 0;
+
         egui::ScrollArea::vertical()
             .auto_shrink([true; 2])
             .max_height(ui.available_height() - 30.0)
@@ -104,7 +117,7 @@ impl LoggerUi {
                         return;
                     }
 
-                    if &self.loglevel < level {
+                    if !(self.loglevels[*level as usize - 1]) {
                         return;
                     }
 
@@ -121,12 +134,13 @@ impl LoggerUi {
                     }
 
                     self.copy_text += &format!("{string} \n").to_string();
+                    logs_displayed += 1;
                 });
             });
 
         ui.horizontal(|ui| {
             ui.label(format!("Log size: {}", logs.len()));
-
+            ui.label(format!("Displayed: {}", logs_displayed));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Copy").clicked() {
                     ui.output().copied_text = self.copy_text.to_string();
