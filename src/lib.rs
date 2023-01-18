@@ -75,14 +75,14 @@ impl LoggerUi {
             if ui.button("Clear").clicked() {
                 *logs = vec![];
             }
-            ui.label("Log Level");
-            // I didn't find elegant ways to iterate an Enum :(
-            for level in LEVELS
-            {
-                if ui.selectable_label( self.loglevels[level as usize - 1], level.as_str()).clicked()
-                {
-                    self.loglevels[level as usize - 1] = !self.loglevels[level as usize - 1];
-                }
+            ui.menu_button("Log Levels", |ui| {
+              for level in LEVELS
+              {
+                  if ui.selectable_label( self.loglevels[level as usize - 1], level.as_str()).clicked()
+                  {
+                      self.loglevels[level as usize - 1] = !self.loglevels[level as usize - 1];
+                  }
+              }
             }
         });
 
