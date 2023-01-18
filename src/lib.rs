@@ -103,7 +103,6 @@ impl LoggerUi {
         });
         ui.separator();
 
-        // a counter
         let mut logs_displayed: usize = 0;
 
         egui::ScrollArea::vertical()
