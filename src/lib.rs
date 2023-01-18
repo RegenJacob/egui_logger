@@ -53,7 +53,6 @@ struct LoggerUi {
 
 impl Default for LoggerUi {
     fn default() -> Self {
-        // Error, Warn and Info
         Self {
             loglevels: [true, true, true, false, false],
             search_term: String::new(),
