@@ -82,7 +82,7 @@ impl LoggerUi {
                       self.loglevels[level as usize - 1] = !self.loglevels[level as usize - 1];
                   }
               }
-            }
+            });
         });
 
         ui.horizontal(|ui| {
