@@ -184,10 +184,10 @@ impl LoggerUi {
         // has to be cleared after every frame
         self.copy_text.clear();
     }
-    fn match_string(&self, string: &String) -> bool {
+    fn match_string(&self, string: &str) -> bool {
         if self.search_use_regex {
             if let Some(matcher) = &self.regex {
-                matcher.is_match(&string)
+                matcher.is_match(string)
             } else {
                 // Failed to compile
                 false
