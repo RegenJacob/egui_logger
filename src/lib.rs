@@ -3,6 +3,8 @@ use std::sync::Mutex;
 use egui::Color32;
 use log::SetLoggerError;
 
+use regex::{Regex, RegexBuilder};
+
 const LEVELS: [log::Level; log::Level::Trace as usize] = [
     log::Level::Error,
     log::Level::Warn,
@@ -45,8 +47,11 @@ static LOGGER_UI: once_cell::sync::Lazy<Mutex<LoggerUi>> =
     once_cell::sync::Lazy::new(Default::default);
 
 struct LoggerUi {
-    loglevels: [bool;log::Level::Trace as usize],
+    loglevels: [bool; log::Level::Trace as usize],
     search_term: String,
+    regex: Option<Regex>,
+    search_case_sensitive: bool,
+    search_use_regex: bool,
     copy_text: String,
     max_log_length: usize,
 }
@@ -56,6 +61,9 @@ impl Default for LoggerUi {
         Self {
             loglevels: [true, true, true, false, false],
             search_term: String::new(),
+            search_case_sensitive: false,
+            regex: None,
+            search_use_regex: false,
             copy_text: String::new(),
             max_log_length: 1000,
         }
@@ -75,19 +83,45 @@ impl LoggerUi {
                 *logs = vec![];
             }
             ui.menu_button("Log Levels", |ui| {
-              for level in LEVELS
-              {
-                  if ui.selectable_label( self.loglevels[level as usize - 1], level.as_str()).clicked()
-                  {
-                      self.loglevels[level as usize - 1] = !self.loglevels[level as usize - 1];
-                  }
-              }
+                for level in LEVELS {
+                    if ui
+                        .selectable_label(self.loglevels[level as usize - 1], level.as_str())
+                        .clicked()
+                    {
+                        self.loglevels[level as usize - 1] = !self.loglevels[level as usize - 1];
+                    }
+                }
             });
         });
 
         ui.horizontal(|ui| {
             ui.label("Search: ");
-            ui.text_edit_singleline(&mut self.search_term);
+            let response = ui.text_edit_singleline(&mut self.search_term);
+
+            let mut config_changed = false;
+
+            if ui
+                .selectable_label(self.search_case_sensitive, "Aa")
+                .on_hover_text("Case sensitive")
+                .clicked()
+            {
+                self.search_case_sensitive = !self.search_case_sensitive;
+                config_changed = true;
+            };
+            if ui
+                .selectable_label(self.search_use_regex, ".*")
+                .on_hover_text("Use regex")
+                .clicked()
+            {
+                self.search_use_regex = !self.search_use_regex;
+                config_changed = true;
+            }
+            if self.search_use_regex && (response.changed() || config_changed) {
+                self.regex = RegexBuilder::new(&self.search_term)
+                    .case_insensitive(!self.search_case_sensitive)
+                    .build()
+                    .ok()
+            };
         });
 
         ui.horizontal(|ui| {
@@ -105,13 +139,14 @@ impl LoggerUi {
         let mut logs_displayed: usize = 0;
 
         egui::ScrollArea::vertical()
-            .auto_shrink([true; 2])
+            .auto_shrink([false, true])
             .max_height(ui.available_height() - 30.0)
+            .stick_to_bottom(true)
             .show(ui, |ui| {
                 logs.iter().for_each(|(level, string)| {
                     let string_format = format!("[{}]: {}", level, string);
 
-                    if !self.search_term.is_empty() && !string.contains(&self.search_term) {
+                    if !self.search_term.is_empty() && !self.match_string(string) {
                         return;
                     }
 
@@ -148,6 +183,24 @@ impl LoggerUi {
 
         // has to be cleared after every frame
         self.copy_text.clear();
+    }
+    fn match_string(&self, string: &str) -> bool {
+        if self.search_use_regex {
+            if let Some(matcher) = &self.regex {
+                matcher.is_match(string)
+            } else {
+                // Failed to compile
+                false
+            }
+        } else {
+            if self.search_case_sensitive {
+                string.contains(&self.search_term)
+            } else {
+                string
+                    .to_lowercase()
+                    .contains(&self.search_term.to_lowercase())
+            }
+        }
     }
 }
 
