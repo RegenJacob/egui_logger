@@ -97,26 +97,26 @@ impl LoggerUi {
         ui.horizontal(|ui| {
             ui.label("Search: ");
             let response = ui.text_edit_singleline(&mut self.search_term);
-            
+
             let mut config_changed = false;
-            
+
             if ui
-            .selectable_label(self.search_case_sensitive, "Aa")
-            .on_hover_text("Case sensitive")
-            .clicked()
+                .selectable_label(self.search_case_sensitive, "Aa")
+                .on_hover_text("Case sensitive")
+                .clicked()
             {
                 self.search_case_sensitive = !self.search_case_sensitive;
                 config_changed = true;
             };
             if ui
-            .selectable_label(self.search_use_regex, ".*")
-            .on_hover_text("Use regex")
-            .clicked()
+                .selectable_label(self.search_use_regex, ".*")
+                .on_hover_text("Use regex")
+                .clicked()
             {
                 self.search_use_regex = !self.search_use_regex;
                 config_changed = true;
             }
-            if self.search_use_regex && (response.changed() || config_changed){
+            if self.search_use_regex && (response.changed() || config_changed) {
                 self.regex = RegexBuilder::new(&self.search_term)
                     .case_insensitive(!self.search_case_sensitive)
                     .build()
