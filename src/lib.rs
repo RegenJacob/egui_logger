@@ -176,7 +176,7 @@ impl LoggerUi {
             ui.label(format!("Displayed: {}", logs_displayed));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Copy").clicked() {
-                    ui.output().copied_text = self.copy_text.to_string();
+                    ui.output_mut(|o| o.copied_text = self.copy_text.to_string());
                 }
             });
         });

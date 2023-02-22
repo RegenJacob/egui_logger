@@ -10,7 +10,7 @@ fn main() {
         "egui_logger",
         options,
         Box::new(|_cc| Box::new(MyApp::default())),
-    );
+    ).unwrap();
 }
 
 #[derive(Default)]
