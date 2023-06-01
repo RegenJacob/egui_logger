@@ -5,6 +5,7 @@
 
 # egui_logger
 This library implements [`log`](https://crates.io/crates/log) logging support into [`egui`](https://crates.io/crates/egui) applications.
+There is also advanced search via regex.
 
 ## Demo
 ![demo](images/egui_logger.png "Demo")
@@ -30,7 +31,3 @@ Window::new("Log")::show(ctx, |ui| {
 
 ## Contribution
 Feel free to open issues and pull requests.
-
-        
-        
-          
