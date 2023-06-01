@@ -14,10 +14,10 @@ include = ["src/*.rs", "Cargo.toml", "LICENSE"]
 
 [dependencies]
 log = "0.4"
-egui = "0.21"
-once_cell = "1.15"
-regex = "1.7.1"
+egui = "0.22"
+once_cell = "1.17"
+regex = "1.8"
 
 [dev-dependencies]
-eframe = "0.21"
+eframe = "0.22"
 
