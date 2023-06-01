@@ -1,6 +1,6 @@
 [package]
 name = "egui_logger"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 authors = ["Jacob <RegenJacob@gmx.de>"]
 license = "MIT"
