@@ -22,13 +22,9 @@ impl log::Log for EguiLogger {
 
     fn log(&self, record: &log::Record) {
         if self.enabled(record.metadata()) {
-            //println!("{}: {}", record.level(), record.args());
-            let mut log = LOG.lock().unwrap();
-
-            let mut l: Vec<(log::Level, String)> = log.clone();
-            l.push((record.level(), record.args().to_string()));
-
-            *log = l;
+            LOG.lock()
+                .unwrap()
+                .push((record.level(), record.args().to_string()));
         }
     }
 
@@ -52,7 +48,6 @@ struct LoggerUi {
     regex: Option<Regex>,
     search_case_sensitive: bool,
     search_use_regex: bool,
-    copy_text: String,
     max_log_length: usize,
 }
 
@@ -64,7 +59,6 @@ impl Default for LoggerUi {
             search_case_sensitive: false,
             regex: None,
             search_use_regex: false,
-            copy_text: String::new(),
             max_log_length: 1000,
         }
     }
@@ -74,13 +68,12 @@ impl LoggerUi {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         let mut logs = LOG.lock().unwrap();
 
-        logs.reverse();
-        logs.truncate(self.max_log_length);
-        logs.reverse();
+        let dropped_entries = logs.len().saturating_sub(self.max_log_length);
+        drop(logs.drain(..dropped_entries));
 
         ui.horizontal(|ui| {
             if ui.button("Clear").clicked() {
-                *logs = vec![];
+                logs.clear();
             }
             ui.menu_button("Log Levels", |ui| {
                 for level in LEVELS {
@@ -107,7 +100,8 @@ impl LoggerUi {
             {
                 self.search_case_sensitive = !self.search_case_sensitive;
                 config_changed = true;
-            };
+            }
+
             if ui
                 .selectable_label(self.search_use_regex, ".*")
                 .on_hover_text("Use regex")
@@ -116,12 +110,13 @@ impl LoggerUi {
                 self.search_use_regex = !self.search_use_regex;
                 config_changed = true;
             }
+
             if self.search_use_regex && (response.changed() || config_changed) {
                 self.regex = RegexBuilder::new(&self.search_term)
                     .case_insensitive(!self.search_case_sensitive)
                     .build()
                     .ok()
-            };
+            }
         });
 
         ui.horizontal(|ui| {
@@ -134,6 +129,7 @@ impl LoggerUi {
                 logs.sort()
             }
         });
+
         ui.separator();
 
         let mut logs_displayed: usize = 0;
@@ -144,29 +140,20 @@ impl LoggerUi {
             .stick_to_bottom(true)
             .show(ui, |ui| {
                 logs.iter().for_each(|(level, string)| {
+                    if (!self.search_term.is_empty() && !self.match_string(string))
+                        || !(self.loglevels[*level as usize - 1])
+                    {
+                        return;
+                    }
+
                     let string_format = format!("[{}]: {}", level, string);
 
-                    if !self.search_term.is_empty() && !self.match_string(string) {
-                        return;
-                    }
+                    let _ = match level {
+                        log::Level::Warn => ui.colored_label(Color32::YELLOW, string_format),
+                        log::Level::Error => ui.colored_label(Color32::RED, string_format),
+                        _ => ui.label(string_format),
+                    };
 
-                    if !(self.loglevels[*level as usize - 1]) {
-                        return;
-                    }
-
-                    match level {
-                        log::Level::Warn => {
-                            ui.colored_label(Color32::YELLOW, string_format);
-                        }
-                        log::Level::Error => {
-                            ui.colored_label(Color32::RED, string_format);
-                        }
-                        _ => {
-                            ui.label(string_format);
-                        }
-                    }
-
-                    self.copy_text += &format!("{string} \n").to_string();
                     logs_displayed += 1;
                 });
             });
@@ -176,30 +163,37 @@ impl LoggerUi {
             ui.label(format!("Displayed: {}", logs_displayed));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Copy").clicked() {
-                    ui.output_mut(|o| o.copied_text = self.copy_text.to_string());
+                    ui.output_mut(|o| {
+                        let mut out_string = String::new();
+                        LOG.lock()
+                            .unwrap()
+                            .iter()
+                            .rev()
+                            .take(self.max_log_length)
+                            .for_each(|(_, string)| {
+                                out_string.push_str(string);
+                                out_string.push_str(" \n");
+                            });
+                        o.copied_text = out_string;
+                    });
                 }
             });
         });
-
-        // has to be cleared after every frame
-        self.copy_text.clear();
     }
+
     fn match_string(&self, string: &str) -> bool {
         if self.search_use_regex {
             if let Some(matcher) = &self.regex {
                 matcher.is_match(string)
             } else {
-                // Failed to compile
                 false
             }
+        } else if self.search_case_sensitive {
+            string.contains(&self.search_term)
         } else {
-            if self.search_case_sensitive {
-                string.contains(&self.search_term)
-            } else {
-                string
-                    .to_lowercase()
-                    .contains(&self.search_term.to_lowercase())
-            }
+            string
+                .to_lowercase()
+                .contains(&self.search_term.to_lowercase())
         }
     }
 }
@@ -207,7 +201,5 @@ impl LoggerUi {
 /// Draws the logger ui
 /// has to be called after [`init()`](init());
 pub fn logger_ui(ui: &mut egui::Ui) {
-    let mut logger_ui = LOGGER_UI.lock().unwrap();
-
-    logger_ui.ui(ui);
+    (*LOGGER_UI.lock().unwrap()).ui(ui);
 }
