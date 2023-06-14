@@ -82,6 +82,7 @@ impl LoggerUi {
                         .clicked()
                     {
                         self.loglevels[level as usize - 1] = !self.loglevels[level as usize - 1];
+                        log::set_max_level(level.to_level_filter());
                     }
                 }
             });
