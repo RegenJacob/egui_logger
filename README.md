@@ -29,5 +29,8 @@ Window::new("Log")::show(ctx, |ui| {
 });
 ```
 
+## Alternatives
+- [egui_tracing](https://crates.io/crates/egui_tracing) primarily for the [tracing](https://crates.io/crates/tracing) create, but also supports log.
+
 ## Contribution
 Feel free to open issues and pull requests.
