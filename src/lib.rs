@@ -165,10 +165,7 @@ impl LoggerUi {
                 if ui.button("Copy").clicked() {
                     ui.output_mut(|o| {
                         let mut out_string = String::new();
-                        LOG.lock()
-                            .unwrap()
-                            .iter()
-                            .rev()
+                        logs.iter()
                             .take(self.max_log_length)
                             .for_each(|(_, string)| {
                                 out_string.push_str(string);
