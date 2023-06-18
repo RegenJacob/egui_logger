@@ -22,9 +22,7 @@ impl log::Log for EguiLogger {
 
     fn log(&self, record: &log::Record) {
         if self.enabled(record.metadata()) {
-            LOG.lock()
-                .unwrap()
-                .push((record.level(), record.args().to_string()));
+            try_mut_log(|logs| logs.push((record.level(), record.args().to_string())));
         }
     }
 
@@ -37,10 +35,32 @@ pub fn init() -> Result<(), SetLoggerError> {
     log::set_logger(&EguiLogger).map(|()| log::set_max_level(log::LevelFilter::Info))
 }
 
-static LOG: Mutex<Vec<(log::Level, String)>> = Mutex::new(Vec::new());
+type GlobalLog = Vec<(log::Level, String)>;
+
+static LOG: Mutex<GlobalLog> = Mutex::new(Vec::new());
 
 static LOGGER_UI: once_cell::sync::Lazy<Mutex<LoggerUi>> =
     once_cell::sync::Lazy::new(Default::default);
+
+fn try_mut_log<F, T>(f: F) -> Option<T>
+where
+    F: FnOnce(&mut GlobalLog) -> T,
+{
+    match LOG.lock() {
+        Ok(ref mut global_log) => Some((f)(global_log)),
+        Err(_) => None,
+    }
+}
+
+fn try_get_log<F, T>(f: F) -> Option<T>
+where
+    F: FnOnce(&GlobalLog) -> T,
+{
+    match LOG.lock() {
+        Ok(ref global_log) => Some((f)(global_log)),
+        Err(_) => None,
+    }
+}
 
 struct LoggerUi {
     loglevels: [bool; log::Level::Trace as usize],
@@ -66,14 +86,14 @@ impl Default for LoggerUi {
 
 impl LoggerUi {
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        let mut logs = LOG.lock().unwrap();
-
-        let dropped_entries = logs.len().saturating_sub(self.max_log_length);
-        drop(logs.drain(..dropped_entries));
+        try_mut_log(|logs| {
+            let dropped_entries = logs.len().saturating_sub(self.max_log_length);
+            drop(logs.drain(..dropped_entries));
+        });
 
         ui.horizontal(|ui| {
             if ui.button("Clear").clicked() {
-                logs.clear();
+                try_mut_log(|logs| logs.clear());
             }
             ui.menu_button("Log Levels", |ui| {
                 for level in LEVELS {
@@ -126,7 +146,7 @@ impl LoggerUi {
 
         ui.horizontal(|ui| {
             if ui.button("Sort").clicked() {
-                logs.sort()
+                try_mut_log(|logs| logs.sort());
             }
         });
 
@@ -139,42 +159,46 @@ impl LoggerUi {
             .max_height(ui.available_height() - 30.0)
             .stick_to_bottom(true)
             .show(ui, |ui| {
-                logs.iter().for_each(|(level, string)| {
-                    if (!self.search_term.is_empty() && !self.match_string(string))
-                        || !(self.loglevels[*level as usize - 1])
-                    {
-                        return;
-                    }
+                try_get_log(|logs| {
+                    logs.iter().for_each(|(level, string)| {
+                        if (!self.search_term.is_empty() && !self.match_string(string))
+                            || !(self.loglevels[*level as usize - 1])
+                        {
+                            return;
+                        }
 
-                    let string_format = format!("[{}]: {}", level, string);
+                        let string_format = format!("[{}]: {}", level, string);
 
-                    match level {
-                        log::Level::Warn => ui.colored_label(Color32::YELLOW, string_format),
-                        log::Level::Error => ui.colored_label(Color32::RED, string_format),
-                        _ => ui.label(string_format),
-                    };
+                        match level {
+                            log::Level::Warn => ui.colored_label(Color32::YELLOW, string_format),
+                            log::Level::Error => ui.colored_label(Color32::RED, string_format),
+                            _ => ui.label(string_format),
+                        };
 
-                    logs_displayed += 1;
+                        logs_displayed += 1;
+                    });
                 });
             });
 
         ui.horizontal(|ui| {
-            ui.label(format!("Log size: {}", logs.len()));
+            ui.label(format!(
+                "Log size: {}",
+                try_get_log(|logs| logs.len()).unwrap_or_default()
+            ));
             ui.label(format!("Displayed: {}", logs_displayed));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Copy").clicked() {
                     ui.output_mut(|o| {
-                        let mut out_string = String::new();
-                        LOG.lock()
-                            .unwrap()
-                            .iter()
-                            .rev()
-                            .take(self.max_log_length)
-                            .for_each(|(_, string)| {
-                                out_string.push_str(string);
-                                out_string.push_str(" \n");
-                            });
-                        o.copied_text = out_string;
+                        try_get_log(|logs| {
+                            let mut out_string = String::new();
+                            logs.iter()
+                                .take(self.max_log_length)
+                                .for_each(|(_, string)| {
+                                    out_string.push_str(string);
+                                    out_string.push_str(" \n");
+                                });
+                            o.copied_text = out_string;
+                        });
                     });
                 }
             });
@@ -201,5 +225,9 @@ impl LoggerUi {
 /// Draws the logger ui
 /// has to be called after [`init()`](init());
 pub fn logger_ui(ui: &mut egui::Ui) {
-    (*LOGGER_UI.lock().unwrap()).ui(ui);
+    if let Ok(ref mut logger_ui) = LOGGER_UI.lock() {
+        logger_ui.ui(ui);
+    } else { 
+        ui.colored_label(Color32::RED, "Something went wrong loading the log");
+    }
 }
