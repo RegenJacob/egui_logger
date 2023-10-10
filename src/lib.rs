@@ -30,9 +30,16 @@ impl log::Log for EguiLogger {
 }
 
 /// Initilizes the global logger.
-/// Should be called very early in the program
+/// Should be called very early in the program.
+/// Defaults to max level Info.
 pub fn init() -> Result<(), SetLoggerError> {
     log::set_logger(&EguiLogger).map(|()| log::set_max_level(log::LevelFilter::Info))
+}
+
+/// Same as [`init()`] accepts a [`log::LevelFilter`] to set the max level
+/// use [`Trace`](log::LevelFilter::Trace) with caution
+pub fn init_with_max_level(max_level: log::LevelFilter) -> Result<(), SetLoggerError> {
+    log::set_logger(&EguiLogger).map(|()| log::set_max_level(max_level))
 }
 
 type GlobalLog = Vec<(log::Level, String)>;
@@ -223,7 +230,7 @@ impl LoggerUi {
 }
 
 /// Draws the logger ui
-/// has to be called after [`init()`](init());
+/// has to be called after [`init()`];
 pub fn logger_ui(ui: &mut egui::Ui) {
     if let Ok(ref mut logger_ui) = LOGGER_UI.lock() {
         logger_ui.ui(ui);

@@ -2,7 +2,7 @@ use eframe::NativeOptions;
 
 fn main() {
     // Initilize the logger
-    egui_logger::init().expect("Error initializing logger");
+    egui_logger::init_with_max_level(log::LevelFilter::Debug).expect("Error initializing logger");
 
     let options = NativeOptions::default();
 
@@ -19,6 +19,12 @@ struct MyApp;
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            if ui.button("This produces Debug Info").clicked() {
+                log::debug!("Very verbose Debug Info")
+            }
+            if ui.button("This produces an Info").clicked() {
+                log::info!("Some Info");
+            }
             if ui.button("This produces an Error").clicked() {
                 log::error!("Error doing Something");
             }
