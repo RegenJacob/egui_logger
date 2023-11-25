@@ -234,7 +234,7 @@ impl LoggerUi {
 pub fn logger_ui(ui: &mut egui::Ui) {
     if let Ok(ref mut logger_ui) = LOGGER_UI.lock() {
         logger_ui.ui(ui);
-    } else { 
+    } else {
         ui.colored_label(Color32::RED, "Something went wrong loading the log");
     }
 }
