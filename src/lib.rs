@@ -13,7 +13,7 @@ const LEVELS: [log::Level; log::Level::Trace as usize] = [
     log::Level::Trace,
 ];
 
-struct EguiLogger;
+pub struct EguiLogger;
 
 impl log::Log for EguiLogger {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
