@@ -29,7 +29,7 @@ impl log::Log for EguiLogger {
     fn flush(&self) {}
 }
 
-/// Initilizes the global logger.
+/// Initializes the global logger.
 /// Should be called very early in the program.
 /// Defaults to max level Info.
 pub fn init() -> Result<(), SetLoggerError> {
@@ -46,8 +46,10 @@ type GlobalLog = Vec<(log::Level, String)>;
 
 static LOG: Mutex<GlobalLog> = Mutex::new(Vec::new());
 
-static LOGGER_UI: once_cell::sync::Lazy<Mutex<LoggerUi>> =
-    once_cell::sync::Lazy::new(Default::default);
+fn log_ui() -> &'static Mutex<LoggerUi> {
+    static LOGGER_UI: std::sync::OnceLock<Mutex<LoggerUi>> = std::sync::OnceLock::new();
+    LOGGER_UI.get_or_init(Default::default)
+}
 
 fn try_mut_log<F, T>(f: F) -> Option<T>
 where
@@ -232,7 +234,7 @@ impl LoggerUi {
 /// Draws the logger ui
 /// has to be called after [`init()`];
 pub fn logger_ui(ui: &mut egui::Ui) {
-    if let Ok(ref mut logger_ui) = LOGGER_UI.lock() {
+    if let Ok(ref mut logger_ui) = log_ui().lock() {
         logger_ui.ui(ui);
     } else {
         ui.colored_label(Color32::RED, "Something went wrong loading the log");

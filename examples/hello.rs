@@ -1,7 +1,7 @@
 use eframe::NativeOptions;
 
 fn main() {
-    // Initilize the logger
+    // Initialize the logger
     egui_logger::init_with_max_level(log::LevelFilter::Debug).expect("Error initializing logger");
 
     let options = NativeOptions::default();
@@ -9,7 +9,7 @@ fn main() {
     eframe::run_native(
         "egui_logger",
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Box::new(MyApp)),
     )
     .unwrap();
 }
