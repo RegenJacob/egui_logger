@@ -2,7 +2,7 @@ use eframe::NativeOptions;
 
 fn main() {
     // Create an EguiLogger; multi_log will take care of initialization.
-    let egui_logger = Box::new(egui_logger::EguiLogger);
+    let egui_logger = Box::new(egui_logger::builder().build());
 
     // And add another one.
     let env_logger = Box::new(env_logger::builder().default_format().build());
@@ -13,7 +13,7 @@ fn main() {
     eframe::run_native(
         "egui_logger",
         NativeOptions::default(),
-        Box::new(|_cc| Box::new(MultiLogApp::default())),
+        Box::new(|_cc| Box::new(MultiLogApp)),
     )
     .expect("Couldn't run eframe app");
 }

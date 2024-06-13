@@ -1,9 +1,11 @@
+#![doc = include_str!("../README.md")]
+mod ui;
+
 use std::sync::Mutex;
 
 use egui::Color32;
 use log::SetLoggerError;
-
-use regex::{Regex, RegexBuilder};
+use ui::{try_mut_log, LoggerUi};
 
 const LEVELS: [log::Level; log::Level::Trace as usize] = [
     log::Level::Error,
@@ -13,7 +15,49 @@ const LEVELS: [log::Level; log::Level::Trace as usize] = [
     log::Level::Trace,
 ];
 
+/// The logger for egui
+/// Don't use this directly, use [`builder()`] instead.
 pub struct EguiLogger;
+
+/// The builder for the logger.
+/// You should use [`builder()`] to get an instance of this.
+pub struct Builder {
+    max_level: log::LevelFilter,
+}
+
+impl Default for Builder {
+    fn default() -> Self {
+        Self {
+            max_level: log::LevelFilter::Debug,
+        }
+    }
+}
+
+impl Builder {
+    /// Returns the Logger.
+    /// Useful if you want to add it to a multi-logger.
+    /// See [here](https://github.com/RegenJacob/egui_logger/blob/main/examples/multi_log.rs) for an example.
+    pub fn build(self) -> EguiLogger {
+        EguiLogger
+    }
+
+    /// Sets the max level for the logger
+    /// this only has an effect when calling [`init()`].
+    ///
+    /// Defaults to [Debug](`log::LevelFilter::Debug`).
+    pub fn max_level(mut self, max_level: log::LevelFilter) -> Self {
+        self.max_level = max_level;
+        self
+    }
+
+    /// Initializes the global logger.
+    /// This should be called very early in the program.
+    ///
+    /// The max level is the [max_level](Self::max_level) field.
+    pub fn init(self) -> Result<(), SetLoggerError> {
+        log::set_logger(&EguiLogger).map(|()| log::set_max_level(self.max_level))
+    }
+}
 
 impl log::Log for EguiLogger {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
@@ -31,204 +75,36 @@ impl log::Log for EguiLogger {
 
 /// Initializes the global logger.
 /// Should be called very early in the program.
-/// Defaults to max level Info.
+/// Defaults to max level Debug.
+///
+/// This is now deprecated, use [`builder()`] instead.
+#[deprecated(
+    since = "0.5.0",
+    note = "Please use `egui_logger::builder().init()` instead"
+)]
 pub fn init() -> Result<(), SetLoggerError> {
-    log::set_logger(&EguiLogger).map(|()| log::set_max_level(log::LevelFilter::Info))
+    builder().init()
 }
 
 /// Same as [`init()`] accepts a [`log::LevelFilter`] to set the max level
 /// use [`Trace`](log::LevelFilter::Trace) with caution
+///
+/// This is now deprecated, use [`builder()`] instead.
+#[deprecated(
+    since = "0.5.0",
+    note = "Please use `egui_logger::builder().max_level(max_level).init()` instead"
+)]
 pub fn init_with_max_level(max_level: log::LevelFilter) -> Result<(), SetLoggerError> {
-    log::set_logger(&EguiLogger).map(|()| log::set_max_level(max_level))
+    builder().max_level(max_level).init()
 }
 
-type GlobalLog = Vec<(log::Level, String)>;
+pub(crate) type GlobalLog = Vec<(log::Level, String)>;
 
 static LOG: Mutex<GlobalLog> = Mutex::new(Vec::new());
 
 fn log_ui() -> &'static Mutex<LoggerUi> {
     static LOGGER_UI: std::sync::OnceLock<Mutex<LoggerUi>> = std::sync::OnceLock::new();
     LOGGER_UI.get_or_init(Default::default)
-}
-
-fn try_mut_log<F, T>(f: F) -> Option<T>
-where
-    F: FnOnce(&mut GlobalLog) -> T,
-{
-    match LOG.lock() {
-        Ok(ref mut global_log) => Some((f)(global_log)),
-        Err(_) => None,
-    }
-}
-
-fn try_get_log<F, T>(f: F) -> Option<T>
-where
-    F: FnOnce(&GlobalLog) -> T,
-{
-    match LOG.lock() {
-        Ok(ref global_log) => Some((f)(global_log)),
-        Err(_) => None,
-    }
-}
-
-struct LoggerUi {
-    loglevels: [bool; log::Level::Trace as usize],
-    search_term: String,
-    regex: Option<Regex>,
-    search_case_sensitive: bool,
-    search_use_regex: bool,
-    max_log_length: usize,
-}
-
-impl Default for LoggerUi {
-    fn default() -> Self {
-        Self {
-            loglevels: [true, true, true, false, false],
-            search_term: String::new(),
-            search_case_sensitive: false,
-            regex: None,
-            search_use_regex: false,
-            max_log_length: 1000,
-        }
-    }
-}
-
-impl LoggerUi {
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
-        try_mut_log(|logs| {
-            let dropped_entries = logs.len().saturating_sub(self.max_log_length);
-            drop(logs.drain(..dropped_entries));
-        });
-
-        ui.horizontal(|ui| {
-            if ui.button("Clear").clicked() {
-                try_mut_log(|logs| logs.clear());
-            }
-            ui.menu_button("Log Levels", |ui| {
-                for level in LEVELS {
-                    if ui
-                        .selectable_label(self.loglevels[level as usize - 1], level.as_str())
-                        .clicked()
-                    {
-                        self.loglevels[level as usize - 1] = !self.loglevels[level as usize - 1];
-                    }
-                }
-            });
-        });
-
-        ui.horizontal(|ui| {
-            ui.label("Search: ");
-            let response = ui.text_edit_singleline(&mut self.search_term);
-
-            let mut config_changed = false;
-
-            if ui
-                .selectable_label(self.search_case_sensitive, "Aa")
-                .on_hover_text("Case sensitive")
-                .clicked()
-            {
-                self.search_case_sensitive = !self.search_case_sensitive;
-                config_changed = true;
-            }
-
-            if ui
-                .selectable_label(self.search_use_regex, ".*")
-                .on_hover_text("Use regex")
-                .clicked()
-            {
-                self.search_use_regex = !self.search_use_regex;
-                config_changed = true;
-            }
-
-            if self.search_use_regex && (response.changed() || config_changed) {
-                self.regex = RegexBuilder::new(&self.search_term)
-                    .case_insensitive(!self.search_case_sensitive)
-                    .build()
-                    .ok()
-            }
-        });
-
-        ui.horizontal(|ui| {
-            ui.label("Max Log output");
-            ui.add(egui::widgets::DragValue::new(&mut self.max_log_length).speed(1));
-        });
-
-        ui.horizontal(|ui| {
-            if ui.button("Sort").clicked() {
-                try_mut_log(|logs| logs.sort());
-            }
-        });
-
-        ui.separator();
-
-        let mut logs_displayed: usize = 0;
-
-        egui::ScrollArea::vertical()
-            .auto_shrink([false, true])
-            .max_height(ui.available_height() - 30.0)
-            .stick_to_bottom(true)
-            .show(ui, |ui| {
-                try_get_log(|logs| {
-                    logs.iter().for_each(|(level, string)| {
-                        if (!self.search_term.is_empty() && !self.match_string(string))
-                            || !(self.loglevels[*level as usize - 1])
-                        {
-                            return;
-                        }
-
-                        let string_format = format!("[{}]: {}", level, string);
-
-                        match level {
-                            log::Level::Warn => ui.colored_label(Color32::YELLOW, string_format),
-                            log::Level::Error => ui.colored_label(Color32::RED, string_format),
-                            _ => ui.label(string_format),
-                        };
-
-                        logs_displayed += 1;
-                    });
-                });
-            });
-
-        ui.horizontal(|ui| {
-            ui.label(format!(
-                "Log size: {}",
-                try_get_log(|logs| logs.len()).unwrap_or_default()
-            ));
-            ui.label(format!("Displayed: {}", logs_displayed));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("Copy").clicked() {
-                    ui.output_mut(|o| {
-                        try_get_log(|logs| {
-                            let mut out_string = String::new();
-                            logs.iter()
-                                .take(self.max_log_length)
-                                .for_each(|(_, string)| {
-                                    out_string.push_str(string);
-                                    out_string.push_str(" \n");
-                                });
-                            o.copied_text = out_string;
-                        });
-                    });
-                }
-            });
-        });
-    }
-
-    fn match_string(&self, string: &str) -> bool {
-        if self.search_use_regex {
-            if let Some(matcher) = &self.regex {
-                matcher.is_match(string)
-            } else {
-                false
-            }
-        } else if self.search_case_sensitive {
-            string.contains(&self.search_term)
-        } else {
-            string
-                .to_lowercase()
-                .contains(&self.search_term.to_lowercase())
-        }
-    }
 }
 
 /// Draws the logger ui
@@ -238,5 +114,31 @@ pub fn logger_ui(ui: &mut egui::Ui) {
         logger_ui.ui(ui);
     } else {
         ui.colored_label(Color32::RED, "Something went wrong loading the log");
+    }
+}
+
+/**
+This returns the Log builder with default values.
+[Read more](`crate::Builder`)
+
+Example:
+```rust
+use log::LevelFilter;
+fn main() -> {
+    // initialize the logger.
+    // You have to open the ui later within your egui context logic.
+    // You should call this very early in the program.
+    egui_logger::builder()
+        .max_level(LevelFilter::Info) // defaults to Debug
+        .init()
+        .unwrap();
+
+    // ...
+}
+```
+*/
+pub fn builder() -> Builder {
+    Builder {
+        ..Default::default()
     }
 }
