@@ -3,9 +3,10 @@ mod ui;
 
 use std::sync::Mutex;
 
-use egui::Color32;
+pub use ui::LoggerUi;
+
 use log::SetLoggerError;
-use ui::{try_mut_log, LoggerUi};
+use ui::try_mut_log;
 
 const LEVELS: [log::Level; log::Level::Trace as usize] = [
     log::Level::Error,
@@ -101,21 +102,6 @@ pub fn init_with_max_level(max_level: log::LevelFilter) -> Result<(), SetLoggerE
 pub(crate) type GlobalLog = Vec<(log::Level, String)>;
 
 static LOG: Mutex<GlobalLog> = Mutex::new(Vec::new());
-
-fn log_ui() -> &'static Mutex<LoggerUi> {
-    static LOGGER_UI: std::sync::OnceLock<Mutex<LoggerUi>> = std::sync::OnceLock::new();
-    LOGGER_UI.get_or_init(Default::default)
-}
-
-/// Draws the logger ui
-/// has to be called after [`init()`];
-pub fn logger_ui(ui: &mut egui::Ui) {
-    if let Ok(ref mut logger_ui) = log_ui().lock() {
-        logger_ui.ui(ui);
-    } else {
-        ui.colored_label(Color32::RED, "Something went wrong loading the log");
-    }
-}
 
 /**
 This returns the Log builder with default values.

@@ -38,7 +38,7 @@ impl eframe::App for MultiLogApp {
             }
         });
         egui::Window::new("Log").show(ctx, |ui| {
-            egui_logger::logger_ui(ui);
+            egui_logger::LoggerUi::default().show(ui)
         });
     }
 }

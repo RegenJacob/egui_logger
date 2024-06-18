@@ -2,7 +2,9 @@ use eframe::NativeOptions;
 
 fn main() {
     // Initialize the logger
-    egui_logger::builder().init().expect("Error initializing logger");
+    egui_logger::builder()
+        .init()
+        .expect("Error initializing logger");
 
     let options = NativeOptions::default();
 
@@ -30,7 +32,9 @@ impl eframe::App for MyApp {
         });
         egui::Window::new("Log").show(ctx, |ui| {
             // draws the actual logger ui
-            egui_logger::logger_ui(ui);
+            egui_logger::LoggerUi::default()
+                .enable_regex(false)
+                .show(ui)
         });
     }
 }

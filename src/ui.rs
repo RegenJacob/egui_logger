@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use egui::Color32;
 use regex::{Regex, RegexBuilder};
 
@@ -23,13 +25,24 @@ where
     }
 }
 
-pub(crate) struct LoggerUi {
+struct Style {
+    enable_regex: bool,
+}
+
+impl Default for Style {
+    fn default() -> Self {
+        Self { enable_regex: true }
+    }
+}
+
+pub struct LoggerUi {
     loglevels: [bool; log::Level::Trace as usize],
     search_term: String,
     regex: Option<Regex>,
     search_case_sensitive: bool,
     search_use_regex: bool,
     max_log_length: usize,
+    style: Style,
 }
 
 impl Default for LoggerUi {
@@ -41,11 +54,30 @@ impl Default for LoggerUi {
             regex: None,
             search_use_regex: false,
             max_log_length: 1000,
+            style: Style::default(),
         }
     }
 }
 
 impl LoggerUi {
+    pub fn enable_regex(mut self, enable: bool) -> Self {
+        self.style.enable_regex = enable;
+        self
+    }
+
+    pub(crate) fn log_ui(self) -> &'static Mutex<LoggerUi> {
+        static LOGGER_UI: std::sync::OnceLock<Mutex<LoggerUi>> = std::sync::OnceLock::new();
+        LOGGER_UI.get_or_init(|| self.into())
+    }
+
+    pub fn show(self, ui: &mut egui::Ui) {
+        if let Ok(ref mut logger_ui) = self.log_ui().lock() {
+            logger_ui.ui(ui);
+        } else {
+            ui.colored_label(Color32::RED, "Something went wrong loading the log");
+        }
+    }
+
     pub(crate) fn ui(&mut self, ui: &mut egui::Ui) {
         try_mut_log(|logs| {
             let dropped_entries = logs.len().saturating_sub(self.max_log_length);
@@ -83,16 +115,20 @@ impl LoggerUi {
                 config_changed = true;
             }
 
-            if ui
-                .selectable_label(self.search_use_regex, ".*")
-                .on_hover_text("Use regex")
-                .clicked()
+            if self.style.enable_regex
+                && ui
+                    .selectable_label(self.search_use_regex, ".*")
+                    .on_hover_text("Use regex")
+                    .clicked()
             {
                 self.search_use_regex = !self.search_use_regex;
                 config_changed = true;
             }
 
-            if self.search_use_regex && (response.changed() || config_changed) {
+            if self.style.enable_regex
+                && self.search_use_regex
+                && (response.changed() || config_changed)
+            {
                 self.regex = RegexBuilder::new(&self.search_term)
                     .case_insensitive(!self.search_case_sensitive)
                     .build()
