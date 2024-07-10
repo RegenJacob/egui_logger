@@ -33,7 +33,7 @@ impl eframe::App for MyApp {
         egui::Window::new("Log").show(ctx, |ui| {
             // draws the actual logger ui
             egui_logger::LoggerUi::default()
-                .enable_regex(false)
+                .enable_regex(true) // enables regex, default is true
                 .show(ui)
         });
     }

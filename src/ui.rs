@@ -35,6 +35,8 @@ impl Default for Style {
     }
 }
 
+/// The Ui for the Logger.
+/// You can use [`logger_ui()`] to get a default instance of the LoggerUi
 pub struct LoggerUi {
     loglevels: [bool; log::Level::Trace as usize],
     search_term: String,
@@ -60,6 +62,8 @@ impl Default for LoggerUi {
 }
 
 impl LoggerUi {
+    /// Enable or disable the regex search
+    /// Default is true
     pub fn enable_regex(mut self, enable: bool) -> Self {
         self.style.enable_regex = enable;
         self
@@ -70,6 +74,7 @@ impl LoggerUi {
         LOGGER_UI.get_or_init(|| self.into())
     }
 
+    /// This draws the Logger UI
     pub fn show(self, ui: &mut egui::Ui) {
         if let Ok(ref mut logger_ui) = self.log_ui().lock() {
             logger_ui.ui(ui);
@@ -217,4 +222,10 @@ impl LoggerUi {
                 .contains(&self.search_term.to_lowercase())
         }
     }
+}
+
+/// Returns a default LoggerUi.
+/// You have to call [`LoggerUi::show()`] to display the logger
+pub fn logger_ui() -> LoggerUi {
+    LoggerUi::default()
 }

@@ -25,7 +25,7 @@ fn main() {
 ```rust
 Window::new("Log")::show(ctx, |ui| {
   // draws the logger ui.
-  egui_logger::LoggerUi::default().show();
+  egui_logger::logger_ui().show();
 });
 ```
 

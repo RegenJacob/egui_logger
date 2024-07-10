@@ -3,6 +3,7 @@ mod ui;
 
 use std::sync::Mutex;
 
+pub use ui::logger_ui;
 pub use ui::LoggerUi;
 
 use log::SetLoggerError;
@@ -17,11 +18,12 @@ const LEVELS: [log::Level; log::Level::Trace as usize] = [
 ];
 
 /// The logger for egui
-/// Don't use this directly, use [`builder()`] instead.
+/// You might want to use [`builder()`] instead.
+/// To get a builder with default values.
 pub struct EguiLogger;
 
 /// The builder for the logger.
-/// You should use [`builder()`] to get an instance of this.
+/// You can use [`builder()`] to get an instance of this.
 pub struct Builder {
     max_level: log::LevelFilter,
 }
@@ -105,6 +107,7 @@ static LOG: Mutex<GlobalLog> = Mutex::new(Vec::new());
 
 /**
 This returns the Log builder with default values.
+This is just a conveniend way to get call [`Builder::default()`].
 [Read more](`crate::Builder`)
 
 Example:
@@ -124,7 +127,5 @@ fn main() -> {
 ```
 */
 pub fn builder() -> Builder {
-    Builder {
-        ..Default::default()
-    }
+    Builder::default()
 }
