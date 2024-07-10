@@ -13,7 +13,7 @@ fn main() {
     eframe::run_native(
         "egui_logger",
         NativeOptions::default(),
-        Box::new(|_cc| Box::new(MultiLogApp)),
+        Box::new(|_cc| Ok(Box::new(MultiLogApp))),
     )
     .expect("Couldn't run eframe app");
 }

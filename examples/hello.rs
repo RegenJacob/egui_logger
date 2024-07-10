@@ -8,7 +8,7 @@ fn main() {
 
     let options = NativeOptions::default();
 
-    eframe::run_native("egui_logger", options, Box::new(|_cc| Box::new(MyApp))).unwrap();
+    eframe::run_native("egui_logger", options, Box::new(|_cc| Ok(Box::new(MyApp)))).unwrap();
 }
 
 #[derive(Default)]
