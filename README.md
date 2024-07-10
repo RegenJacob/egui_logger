@@ -13,19 +13,19 @@ There is also advanced search via regex.
 ## Example
 
 ### initilazing:
-```rust 
+```rust
 fn main() {
   // Should be called very early in the program.
-  egui_logger::init().unwrap(); 
+  egui_logger::builder().init().unwrap(); 
 }
 ```
 
 ### inside your ui logic:
 
-```rust 
+```rust
 Window::new("Log")::show(ctx, |ui| {
   // draws the logger ui.
-  egui_logger::logger_ui(ui);
+  egui_logger::logger_ui().show();
 });
 ```
 
