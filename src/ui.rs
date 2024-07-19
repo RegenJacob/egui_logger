@@ -27,11 +27,15 @@ where
 
 struct Style {
     enable_regex: bool,
+    enable_ctx_menu: bool,
 }
 
 impl Default for Style {
     fn default() -> Self {
-        Self { enable_regex: true }
+        Self {
+            enable_regex: true,
+            enable_ctx_menu: true,
+        }
     }
 }
 
@@ -64,8 +68,17 @@ impl Default for LoggerUi {
 impl LoggerUi {
     /// Enable or disable the regex search
     /// Default is true
+    #[inline] // i think the compiler already does this
     pub fn enable_regex(mut self, enable: bool) -> Self {
         self.style.enable_regex = enable;
+        self
+    }
+
+    /// Enable or disable the context menu
+    /// Default is true
+    #[inline]
+    pub fn enable_ctx_menu(mut self, enable: bool) -> Self {
+        self.style.enable_ctx_menu = enable;
         self
     }
 
@@ -177,24 +190,24 @@ impl LoggerUi {
                             _ => ui.label(string_format),
                         };
 
-                        response.clone().context_menu(|ui| {
-                            response.highlight();
-                            match level {
-                                log::Level::Warn => {
-                                    ui.colored_label(Color32::YELLOW, "WARNING:")
-                                }
-                                log::Level::Error => {
-                                    ui.colored_label(Color32::RED, "ERROR:")
-                                }
-                                _ => ui.label(format!("{level}:"))
-                            };
+                        if self.style.enable_ctx_menu {
+                            response.clone().context_menu(|ui| {
+                                response.highlight();
+                                match level {
+                                    log::Level::Warn => {
+                                        ui.colored_label(Color32::YELLOW, "WARNING:")
+                                    }
+                                    log::Level::Error => ui.colored_label(Color32::RED, "ERROR:"),
+                                    _ => ui.label(format!("{level}:")),
+                                };
 
-                            if ui.button("Copy").clicked() {
-                                ui.output_mut(|o| {
-                                    o.copied_text = string.to_string();
-                                });
-                            }
-                        });
+                                if ui.button("Copy").clicked() {
+                                    ui.output_mut(|o| {
+                                        o.copied_text = string.to_string();
+                                    });
+                                }
+                            });
+                        }
 
                         logs_displayed += 1;
                     });
