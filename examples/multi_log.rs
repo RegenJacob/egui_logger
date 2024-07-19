@@ -37,6 +37,11 @@ impl eframe::App for MultiLogApp {
                 log::warn!("Warn about something")
             }
         });
-        egui::Window::new("Log").show(ctx, |ui| egui_logger::logger_ui().show(ui));
+        egui::Window::new("Log").show(ctx, |ui| {
+            egui_logger::logger_ui()
+                .enable_regex(true)
+                .show_target(false) // multi_log won't show the target
+                .show(ui)
+        });
     }
 }

@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use egui::Color32;
+use egui::{Color32, RichText};
 use regex::{Regex, RegexBuilder};
 
 use crate::{GlobalLog, LEVELS, LOG};
@@ -28,11 +28,13 @@ where
 struct Style {
     enable_regex: bool,
     enable_ctx_menu: bool,
+    show_target: bool,
 }
 
 impl Default for Style {
     fn default() -> Self {
         Self {
+            show_target: true,
             enable_regex: true,
             enable_ctx_menu: true,
         }
@@ -79,6 +81,14 @@ impl LoggerUi {
     #[inline]
     pub fn enable_ctx_menu(mut self, enable: bool) -> Self {
         self.style.enable_ctx_menu = enable;
+        self
+    }
+
+    /// Enable or disable showing the [target](log::Record::target())
+    /// Default is true
+    #[inline]
+    pub fn show_target(mut self, enable: bool) -> Self {
+        self.style.show_target = enable;
         self
     }
 
@@ -175,7 +185,7 @@ impl LoggerUi {
             .stick_to_bottom(true)
             .show(ui, |ui| {
                 try_get_log(|logs| {
-                    logs.iter().for_each(|(level, string)| {
+                    logs.iter().for_each(|(level, string, target)| {
                         if (!self.search_term.is_empty() && !self.match_string(string))
                             || !(self.loglevels[*level as usize - 1])
                         {
@@ -192,14 +202,28 @@ impl LoggerUi {
 
                         if self.style.enable_ctx_menu {
                             response.clone().context_menu(|ui| {
+                                if self.style.show_target {
+                                    ui.label(target);
+                                }
                                 response.highlight();
-                                match level {
-                                    log::Level::Warn => {
-                                        ui.colored_label(Color32::YELLOW, "WARNING:")
-                                    }
-                                    log::Level::Error => ui.colored_label(Color32::RED, "ERROR:"),
-                                    _ => ui.label(format!("{level}:")),
-                                };
+                                let string_format = format!("[{}]: {}", level, string);
+
+                                // the vertical layout is because otherwise text spacing gets weird
+                                ui.vertical(|ui| {
+                                    match level {
+                                        log::Level::Warn => ui.label(
+                                            RichText::new(string_format)
+                                                .monospace()
+                                                .color(Color32::YELLOW),
+                                        ),
+                                        log::Level::Error => ui.label(
+                                            RichText::new(string_format)
+                                                .monospace()
+                                                .color(Color32::RED),
+                                        ),
+                                        _ => ui.monospace(string_format),
+                                    };
+                                });
 
                                 if ui.button("Copy").clicked() {
                                     ui.output_mut(|o| {
@@ -227,7 +251,7 @@ impl LoggerUi {
                             let mut out_string = String::new();
                             logs.iter()
                                 .take(self.max_log_length)
-                                .for_each(|(_, string)| {
+                                .for_each(|(_, string, _)| {
                                     out_string.push_str(string);
                                     out_string.push_str(" \n");
                                 });
