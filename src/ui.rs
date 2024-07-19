@@ -171,11 +171,30 @@ impl LoggerUi {
 
                         let string_format = format!("[{}]: {}", level, string);
 
-                        match level {
+                        let response = match level {
                             log::Level::Warn => ui.colored_label(Color32::YELLOW, string_format),
                             log::Level::Error => ui.colored_label(Color32::RED, string_format),
                             _ => ui.label(string_format),
                         };
+
+                        response.clone().context_menu(|ui| {
+                            response.highlight();
+                            match level {
+                                log::Level::Warn => {
+                                    ui.colored_label(Color32::YELLOW, "WARNING:")
+                                }
+                                log::Level::Error => {
+                                    ui.colored_label(Color32::RED, "ERROR:")
+                                }
+                                _ => ui.label(format!("{level}:"))
+                            };
+
+                            if ui.button("Copy").clicked() {
+                                ui.output_mut(|o| {
+                                    o.copied_text = string.to_string();
+                                });
+                            }
+                        });
 
                         logs_displayed += 1;
                     });
