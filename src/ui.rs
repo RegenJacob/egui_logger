@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use egui::Color32;
+use egui::{Color32, RichText};
 use regex::{Regex, RegexBuilder};
 
 use crate::{GlobalLog, LEVELS, LOG};
@@ -27,11 +27,17 @@ where
 
 struct Style {
     enable_regex: bool,
+    enable_ctx_menu: bool,
+    show_target: bool,
 }
 
 impl Default for Style {
     fn default() -> Self {
-        Self { enable_regex: true }
+        Self {
+            show_target: true,
+            enable_regex: true,
+            enable_ctx_menu: true,
+        }
     }
 }
 
@@ -64,8 +70,25 @@ impl Default for LoggerUi {
 impl LoggerUi {
     /// Enable or disable the regex search
     /// Default is true
+    #[inline] // i think the compiler already does this
     pub fn enable_regex(mut self, enable: bool) -> Self {
         self.style.enable_regex = enable;
+        self
+    }
+
+    /// Enable or disable the context menu
+    /// Default is true
+    #[inline]
+    pub fn enable_ctx_menu(mut self, enable: bool) -> Self {
+        self.style.enable_ctx_menu = enable;
+        self
+    }
+
+    /// Enable or disable showing the [target](log::Record::target())
+    /// Default is true
+    #[inline]
+    pub fn show_target(mut self, enable: bool) -> Self {
+        self.style.show_target = enable;
         self
     }
 
@@ -162,7 +185,7 @@ impl LoggerUi {
             .stick_to_bottom(true)
             .show(ui, |ui| {
                 try_get_log(|logs| {
-                    logs.iter().for_each(|(level, string)| {
+                    logs.iter().for_each(|(level, string, target)| {
                         if (!self.search_term.is_empty() && !self.match_string(string))
                             || !(self.loglevels[*level as usize - 1])
                         {
@@ -171,11 +194,44 @@ impl LoggerUi {
 
                         let string_format = format!("[{}]: {}", level, string);
 
-                        match level {
+                        let response = match level {
                             log::Level::Warn => ui.colored_label(Color32::YELLOW, string_format),
                             log::Level::Error => ui.colored_label(Color32::RED, string_format),
                             _ => ui.label(string_format),
                         };
+
+                        if self.style.enable_ctx_menu {
+                            response.clone().context_menu(|ui| {
+                                if self.style.show_target {
+                                    ui.label(target);
+                                }
+                                response.highlight();
+                                let string_format = format!("[{}]: {}", level, string);
+
+                                // the vertical layout is because otherwise text spacing gets weird
+                                ui.vertical(|ui| {
+                                    match level {
+                                        log::Level::Warn => ui.label(
+                                            RichText::new(string_format)
+                                                .monospace()
+                                                .color(Color32::YELLOW),
+                                        ),
+                                        log::Level::Error => ui.label(
+                                            RichText::new(string_format)
+                                                .monospace()
+                                                .color(Color32::RED),
+                                        ),
+                                        _ => ui.monospace(string_format),
+                                    };
+                                });
+
+                                if ui.button("Copy").clicked() {
+                                    ui.output_mut(|o| {
+                                        o.copied_text = string.to_string();
+                                    });
+                                }
+                            });
+                        }
 
                         logs_displayed += 1;
                     });
@@ -195,7 +251,7 @@ impl LoggerUi {
                             let mut out_string = String::new();
                             logs.iter()
                                 .take(self.max_log_length)
-                                .for_each(|(_, string)| {
+                                .for_each(|(_, string, _)| {
                                     out_string.push_str(string);
                                     out_string.push_str(" \n");
                                 });

@@ -69,7 +69,13 @@ impl log::Log for EguiLogger {
 
     fn log(&self, record: &log::Record) {
         if self.enabled(record.metadata()) {
-            try_mut_log(|logs| logs.push((record.level(), record.args().to_string())));
+            try_mut_log(|logs| {
+                logs.push((
+                    record.level(),
+                    record.args().to_string(),
+                    record.target().to_string(),
+                ))
+            });
         }
     }
 
@@ -101,7 +107,7 @@ pub fn init_with_max_level(max_level: log::LevelFilter) -> Result<(), SetLoggerE
     builder().max_level(max_level).init()
 }
 
-pub(crate) type GlobalLog = Vec<(log::Level, String)>;
+pub(crate) type GlobalLog = Vec<(log::Level, String, String)>;
 
 static LOG: Mutex<GlobalLog> = Mutex::new(Vec::new());
 
