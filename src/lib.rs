@@ -1,13 +1,14 @@
 #![doc = include_str!("../README.md")]
 mod ui;
 
+use std::sync::LazyLock;
 use std::sync::Mutex;
 
+use hashbrown::HashMap;
 pub use ui::logger_ui;
 pub use ui::LoggerUi;
 
 use log::SetLoggerError;
-use ui::try_mut_log;
 
 const LEVELS: [log::Level; log::Level::Trace as usize] = [
     log::Level::Error,
@@ -69,13 +70,20 @@ impl log::Log for EguiLogger {
 
     fn log(&self, record: &log::Record) {
         if self.enabled(record.metadata()) {
-            try_mut_log(|logs| {
-                logs.push((
-                    record.level(),
-                    record.args().to_string(),
-                    record.target().to_string(),
-                ))
-            });
+            if let Ok(ref mut logger) = LOGGER.lock() {
+                logger.logs.push(Record {
+                    level: record.level(),
+                    message: record.args().to_string(),
+                    target: record.target().to_string(),
+                    time: chrono::Local::now(),
+                });
+
+                if !logger.categories.contains_key(record.target()) {
+                    logger.categories.insert(record.target().to_string(), true);
+                    logger.max_category_length =
+                        logger.max_category_length.max(record.target().len());
+                }
+            }
         }
     }
 
@@ -107,9 +115,27 @@ pub fn init_with_max_level(max_level: log::LevelFilter) -> Result<(), SetLoggerE
     builder().max_level(max_level).init()
 }
 
-pub(crate) type GlobalLog = Vec<(log::Level, String, String)>;
+struct Record {
+    level: log::Level,
+    message: String,
+    target: String,
+    time: chrono::DateTime<chrono::Local>,
+}
 
-static LOG: Mutex<GlobalLog> = Mutex::new(Vec::new());
+struct Logger {
+    logs: Vec<Record>,
+    categories: HashMap<String, bool>,
+    max_category_length: usize,
+    start_time: chrono::DateTime<chrono::Local>,
+}
+static LOGGER: LazyLock<Mutex<Logger>> = LazyLock::new(|| {
+    Mutex::new(Logger {
+        logs: Vec::new(),
+        categories: HashMap::new(),
+        max_category_length: 0,
+        start_time: chrono::Local::now(),
+    })
+});
 
 /**
 This returns the Log builder with default values.
@@ -119,7 +145,8 @@ This is just a conveniend way to get call [`Builder::default()`].
 Example:
 ```rust
 use log::LevelFilter;
-fn main() -> {
+# #[allow(clippy::needless_doctest_main)]
+fn main() {
     // initialize the logger.
     // You have to open the ui later within your egui context logic.
     // You should call this very early in the program.
