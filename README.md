@@ -14,22 +14,21 @@ There is also advanced search via regex.
 
 ### initilazing:
 ```rust
-# #[allow(clippy::needless_doctest_main)]
 fn main() {
   // Should be called very early in the program.
-  egui_logger::builder().init().unwrap(); 
+  egui_logger::builder().init().unwrap();
 }
 ```
 
 ### inside your ui logic:
 
 ```rust
-# fn ui(ctx: &egui::Context) {
-egui::Window::new("Log").show(ctx, |ui| {
-  // draws the logger ui.
-  egui_logger::logger_ui().show(ui);
-});
-# }
+fn ui(ctx: &egui::Context) {
+    egui::Window::new("Log").show(ctx, |ui| {
+        // draws the logger ui.
+        egui_logger::logger_ui().show(ui);
+    });
+}
 ```
 
 ## Alternatives
