@@ -1,42 +1,46 @@
 use std::sync::Mutex;
 
-use egui::{Color32, RichText};
+use egui::{text::LayoutJob, Align, Color32, FontSelection, RichText, Style};
 use regex::{Regex, RegexBuilder};
 
-use crate::{GlobalLog, LEVELS, LOG};
+use crate::{Logger, Record, LEVELS, LOGGER};
 
-pub(crate) fn try_mut_log<F, T>(f: F) -> Option<T>
-where
-    F: FnOnce(&mut GlobalLog) -> T,
-{
-    match LOG.lock() {
-        Ok(ref mut global_log) => Some((f)(global_log)),
-        Err(_) => None,
-    }
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum TimePrecision {
+    Seconds,
+    Milliseconds,
 }
 
-fn try_get_log<F, T>(f: F) -> Option<T>
-where
-    F: FnOnce(&GlobalLog) -> T,
-{
-    match LOG.lock() {
-        Ok(ref global_log) => Some((f)(global_log)),
-        Err(_) => None,
-    }
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum TimeFormat {
+    Utc,
+    LocalTime,
+    SinceStart,
 }
 
-struct Style {
+struct LoggerStyle {
     enable_regex: bool,
     enable_ctx_menu: bool,
     show_target: bool,
+    time_precision: TimePrecision,
+    time_format: TimeFormat,
+
+    warn_color: Color32,
+    error_color: Color32,
+    highlight_color: Color32,
 }
 
-impl Default for Style {
+impl Default for LoggerStyle {
     fn default() -> Self {
         Self {
             show_target: true,
             enable_regex: true,
             enable_ctx_menu: true,
+            time_format: TimeFormat::LocalTime,
+            time_precision: TimePrecision::Seconds,
+            warn_color: Color32::YELLOW,
+            error_color: Color32::RED,
+            highlight_color: Color32::LIGHT_GRAY,
         }
     }
 }
@@ -50,7 +54,7 @@ pub struct LoggerUi {
     search_case_sensitive: bool,
     search_use_regex: bool,
     max_log_length: usize,
-    style: Style,
+    style: LoggerStyle,
 }
 
 impl Default for LoggerUi {
@@ -62,7 +66,7 @@ impl Default for LoggerUi {
             regex: None,
             search_use_regex: false,
             max_log_length: 1000,
-            style: Style::default(),
+            style: LoggerStyle::default(),
         }
     }
 }
@@ -92,6 +96,24 @@ impl LoggerUi {
         self
     }
 
+    #[inline]
+    pub fn warn_color(mut self, color: Color32) -> Self {
+        self.style.warn_color = color;
+        self
+    }
+
+    #[inline]
+    pub fn error_color(mut self, color: Color32) -> Self {
+        self.style.error_color = color;
+        self
+    }
+
+    #[inline]
+    pub fn highlight_color(mut self, color: Color32) -> Self {
+        self.style.highlight_color = color;
+        self
+    }
+
     pub(crate) fn log_ui(self) -> &'static Mutex<LoggerUi> {
         static LOGGER_UI: std::sync::OnceLock<Mutex<LoggerUi>> = std::sync::OnceLock::new();
         LOGGER_UI.get_or_init(|| self.into())
@@ -107,14 +129,18 @@ impl LoggerUi {
     }
 
     pub(crate) fn ui(&mut self, ui: &mut egui::Ui) {
-        try_mut_log(|logs| {
-            let dropped_entries = logs.len().saturating_sub(self.max_log_length);
-            drop(logs.drain(..dropped_entries));
-        });
+        let Ok(ref mut logger) = LOGGER.lock() else {
+            return;
+        };
+
+        {
+            let dropped_entries = logger.logs.len().saturating_sub(self.max_log_length);
+            drop(logger.logs.drain(..dropped_entries));
+        }
 
         ui.horizontal(|ui| {
             if ui.button("Clear").clicked() {
-                try_mut_log(|logs| logs.clear());
+                logger.logs.clear();
             }
             ui.menu_button("Log Levels", |ui| {
                 for level in LEVELS {
@@ -125,6 +151,53 @@ impl LoggerUi {
                         self.loglevels[level as usize - 1] = !self.loglevels[level as usize - 1];
                     }
                 }
+            });
+
+            ui.menu_button("Categories", |ui| {
+                if ui.button("Select All").clicked() {
+                    for (_, enabled) in logger.categories.iter_mut() {
+                        *enabled = true;
+                    }
+                }
+
+                if ui.button("Unselect All").clicked() {
+                    for (_, enabled) in logger.categories.iter_mut() {
+                        *enabled = false;
+                    }
+                }
+
+                for (category, enabled) in logger.categories.iter_mut() {
+                    if ui.selectable_label(*enabled, category).clicked() {
+                        *enabled = !*enabled;
+                    }
+                }
+            });
+
+            ui.menu_button("Time", |ui| {
+                ui.radio_value(&mut self.style.time_format, TimeFormat::Utc, "UTC");
+                ui.radio_value(
+                    &mut self.style.time_format,
+                    TimeFormat::LocalTime,
+                    "Local Time",
+                );
+                ui.radio_value(
+                    &mut self.style.time_format,
+                    TimeFormat::SinceStart,
+                    "Since Start",
+                );
+
+                ui.separator();
+
+                ui.radio_value(
+                    &mut self.style.time_precision,
+                    TimePrecision::Seconds,
+                    "Seconds",
+                );
+                ui.radio_value(
+                    &mut self.style.time_precision,
+                    TimePrecision::Milliseconds,
+                    "Milliseconds",
+                );
             });
         });
 
@@ -169,94 +242,79 @@ impl LoggerUi {
             ui.add(egui::widgets::DragValue::new(&mut self.max_log_length).speed(1));
         });
 
-        ui.horizontal(|ui| {
-            if ui.button("Sort").clicked() {
-                try_mut_log(|logs| logs.sort());
-            }
-        });
-
         ui.separator();
 
         let mut logs_displayed: usize = 0;
+
+        let time_padding = logger.logs.last().map_or(0, |record| {
+            format_time(record.time, &self.style, logger.start_time).len()
+        });
 
         egui::ScrollArea::vertical()
             .auto_shrink([false, true])
             .max_height(ui.available_height() - 30.0)
             .stick_to_bottom(true)
             .show(ui, |ui| {
-                try_get_log(|logs| {
-                    logs.iter().for_each(|(level, string, target)| {
-                        if (!self.search_term.is_empty() && !self.match_string(string))
-                            || !(self.loglevels[*level as usize - 1])
-                        {
-                            return;
-                        }
+                logger.logs.iter().for_each(|record| {
+                    // Filter out categories that are disabled
+                    if let Some(&false) = logger.categories.get(&record.target) {
+                        return;
+                    }
 
-                        let string_format = format!("[{}]: {}", level, string);
+                    let layout_job = format_record(logger, &self.style, record, time_padding);
 
-                        let response = match level {
-                            log::Level::Warn => ui.colored_label(Color32::YELLOW, string_format),
-                            log::Level::Error => ui.colored_label(Color32::RED, string_format),
-                            _ => ui.label(string_format),
-                        };
+                    let raw_text = layout_job.text.clone();
 
-                        if self.style.enable_ctx_menu {
-                            response.clone().context_menu(|ui| {
-                                if self.style.show_target {
-                                    ui.label(target);
-                                }
-                                response.highlight();
-                                let string_format = format!("[{}]: {}", level, string);
+                    // Filter out log levels that are disabled via regex or log level
+                    if (!self.search_term.is_empty() && !self.match_string(&raw_text))
+                        || !(self.loglevels[record.level as usize - 1])
+                    {
+                        return;
+                    }
 
-                                // the vertical layout is because otherwise text spacing gets weird
-                                ui.vertical(|ui| {
-                                    match level {
-                                        log::Level::Warn => ui.label(
-                                            RichText::new(string_format)
-                                                .monospace()
-                                                .color(Color32::YELLOW),
-                                        ),
-                                        log::Level::Error => ui.label(
-                                            RichText::new(string_format)
-                                                .monospace()
-                                                .color(Color32::RED),
-                                        ),
-                                        _ => ui.monospace(string_format),
-                                    };
-                                });
+                    let response = ui.label(layout_job);
 
-                                if ui.button("Copy").clicked() {
-                                    ui.output_mut(|o| {
-                                        o.copied_text = string.to_string();
-                                    });
-                                }
+                    if self.style.enable_ctx_menu {
+                        response.clone().context_menu(|ui| {
+                            if self.style.show_target {
+                                ui.label(&record.target);
+                            }
+                            response.highlight();
+                            let string_format = format!("[{}]: {}", record.level, record.message);
+
+                            // the vertical layout is because otherwise text spacing gets weird
+                            ui.vertical(|ui| {
+                                ui.monospace(string_format);
                             });
-                        }
 
-                        logs_displayed += 1;
-                    });
+                            if ui.button("Copy").clicked() {
+                                ui.ctx().copy_text(raw_text);
+                            }
+                        });
+                    }
+
+                    logs_displayed += 1;
                 });
             });
 
         ui.horizontal(|ui| {
-            ui.label(format!(
-                "Log size: {}",
-                try_get_log(|logs| logs.len()).unwrap_or_default()
-            ));
+            ui.label(format!("Log size: {}", logger.logs.len()));
             ui.label(format!("Displayed: {}", logs_displayed));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Copy").clicked() {
                     ui.output_mut(|o| {
-                        try_get_log(|logs| {
-                            let mut out_string = String::new();
-                            logs.iter()
-                                .take(self.max_log_length)
-                                .for_each(|(_, string, _)| {
-                                    out_string.push_str(string);
-                                    out_string.push_str(" \n");
-                                });
-                            o.copied_text = out_string;
-                        });
+                        let mut out_string = String::new();
+                        logger
+                            .logs
+                            .iter()
+                            .take(self.max_log_length)
+                            .for_each(|record| {
+                                out_string.push_str(
+                                    &format_record(logger, &self.style, record, time_padding).text,
+                                );
+                                out_string.push_str(" \n");
+                            });
+                        o.copied_text = out_string;
                     });
                 }
             });
@@ -284,4 +342,97 @@ impl LoggerUi {
 /// You have to call [`LoggerUi::show()`] to display the logger
 pub fn logger_ui() -> LoggerUi {
     LoggerUi::default()
+}
+
+fn format_time(
+    time: chrono::DateTime<chrono::Local>,
+    style: &LoggerStyle,
+    start_time: chrono::DateTime<chrono::Local>,
+) -> String {
+    match (style.time_format, style.time_precision) {
+        (TimeFormat::Utc, TimePrecision::Seconds) => time
+            .to_utc()
+            .to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+        (TimeFormat::Utc, TimePrecision::Milliseconds) => time
+            .to_utc()
+            .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        (TimeFormat::LocalTime, TimePrecision::Seconds) => time.format("%T").to_string(),
+        (TimeFormat::LocalTime, TimePrecision::Milliseconds) => time.format("%T%.3f").to_string(),
+        (TimeFormat::SinceStart, TimePrecision::Seconds) => {
+            let duration = time - start_time;
+            let h = duration.num_hours() % 24;
+            let m = duration.num_minutes() % 60;
+            let s = duration.num_seconds() % 60;
+            match (h, m, s) {
+                (0, 0, s) => format!("{s}s"),
+                (0, m, s) => format!("{m}m {s}s"),
+                (h, m, s) => format!("{h}h {m}m {s}s"),
+            }
+        }
+        (TimeFormat::SinceStart, TimePrecision::Milliseconds) => {
+            let duration = time - start_time;
+            let h = duration.num_hours() % 24;
+            let m = duration.num_minutes() % 60;
+            let s = duration.num_seconds() % 60;
+            let ms = duration.num_milliseconds() % 1000;
+            match (h, m, s, ms) {
+                (0, 0, 0, ms) => format!("{ms}ms"),
+                (0, 0, s, ms) => format!("{s}s {ms}ms"),
+                (0, m, s, ms) => format!("{m}m {s}s {ms}ms"),
+                (h, m, s, ms) => format!("{h}h {m}m {s}s {ms}ms"),
+            }
+        }
+    }
+}
+
+fn format_record(
+    logger: &Logger,
+    logger_style: &LoggerStyle,
+    record: &Record,
+    time_padding: usize,
+) -> LayoutJob {
+    let level_target = format!(
+        "[{:5}] {: <width$}: ",
+        record.level,
+        record.target,
+        width = logger.max_category_length
+    );
+    let mut layout_job = LayoutJob::default();
+    let style = Style::default();
+
+    let mut date_str = RichText::new(format!(
+        "{: >width$} ",
+        format_time(record.time, logger_style, logger.start_time),
+        width = time_padding
+    ))
+    .monospace();
+    match record.level {
+        log::Level::Warn => date_str = date_str.color(logger_style.warn_color),
+        log::Level::Error => date_str = date_str.color(logger_style.error_color),
+        _ => {}
+    }
+
+    date_str.append_to(&mut layout_job, &style, FontSelection::Default, Align::LEFT);
+
+    let highlight_color = match record.level {
+        log::Level::Warn => logger_style.warn_color,
+        log::Level::Error => logger_style.error_color,
+        _ => logger_style.highlight_color,
+    };
+
+    RichText::new(level_target)
+        .monospace()
+        .color(highlight_color)
+        .append_to(&mut layout_job, &style, FontSelection::Default, Align::LEFT);
+
+    let mut message = RichText::new(&record.message).monospace();
+    match record.level {
+        log::Level::Warn => message = message.color(logger_style.warn_color),
+        log::Level::Error => message = message.color(logger_style.error_color),
+        _ => {}
+    }
+
+    message.append_to(&mut layout_job, &style, FontSelection::Default, Align::LEFT);
+
+    layout_job
 }
