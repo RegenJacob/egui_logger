@@ -46,7 +46,7 @@ impl Default for LoggerStyle {
 }
 
 /// The Ui for the Logger.
-/// You can use [`logger_ui()`] to get a default instance of the LoggerUi
+/// You can use [`logger_ui()`] to get a default instance of the `LoggerUi`
 pub struct LoggerUi {
     loglevels: [bool; log::Level::Trace as usize],
     search_term: String,
@@ -75,7 +75,7 @@ impl LoggerUi {
     /// Enable or disable the regex search
     /// Default is true
     #[inline] // i think the compiler already does this
-    pub fn enable_regex(mut self, enable: bool) -> Self {
+    pub const fn enable_regex(mut self, enable: bool) -> Self {
         self.style.enable_regex = enable;
         self
     }
@@ -83,7 +83,7 @@ impl LoggerUi {
     /// Enable or disable the context menu
     /// Default is true
     #[inline]
-    pub fn enable_ctx_menu(mut self, enable: bool) -> Self {
+    pub const fn enable_ctx_menu(mut self, enable: bool) -> Self {
         self.style.enable_ctx_menu = enable;
         self
     }
@@ -91,30 +91,30 @@ impl LoggerUi {
     /// Enable or disable showing the [target](log::Record::target())
     /// Default is true
     #[inline]
-    pub fn show_target(mut self, enable: bool) -> Self {
+    pub const fn show_target(mut self, enable: bool) -> Self {
         self.style.show_target = enable;
         self
     }
 
     #[inline]
-    pub fn warn_color(mut self, color: Color32) -> Self {
+    pub const fn warn_color(mut self, color: Color32) -> Self {
         self.style.warn_color = color;
         self
     }
 
     #[inline]
-    pub fn error_color(mut self, color: Color32) -> Self {
+    pub const fn error_color(mut self, color: Color32) -> Self {
         self.style.error_color = color;
         self
     }
 
     #[inline]
-    pub fn highlight_color(mut self, color: Color32) -> Self {
+    pub const fn highlight_color(mut self, color: Color32) -> Self {
         self.style.highlight_color = color;
         self
     }
 
-    pub(crate) fn log_ui(self) -> &'static Mutex<LoggerUi> {
+    pub(crate) fn log_ui(self) -> &'static Mutex<Self> {
         static LOGGER_UI: std::sync::OnceLock<Mutex<LoggerUi>> = std::sync::OnceLock::new();
         LOGGER_UI.get_or_init(|| self.into())
     }
@@ -128,6 +128,7 @@ impl LoggerUi {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn ui(&mut self, ui: &mut egui::Ui) {
         let Ok(ref mut logger) = LOGGER.lock() else {
             return;
@@ -155,18 +156,18 @@ impl LoggerUi {
 
             ui.menu_button("Categories", |ui| {
                 if ui.button("Select All").clicked() {
-                    for (_, enabled) in logger.categories.iter_mut() {
+                    for (_, enabled) in &mut logger.categories {
                         *enabled = true;
                     }
                 }
 
                 if ui.button("Unselect All").clicked() {
-                    for (_, enabled) in logger.categories.iter_mut() {
+                    for (_, enabled) in &mut logger.categories {
                         *enabled = false;
                     }
                 }
 
-                for (category, enabled) in logger.categories.iter_mut() {
+                for (category, enabled) in &mut logger.categories {
                     if ui.selectable_label(*enabled, category).clicked() {
                         *enabled = !*enabled;
                     }
@@ -200,7 +201,7 @@ impl LoggerUi {
                 );
             });
         });
-
+        #[allow(clippy::useless_let_if_seq)] // it's ok here
         ui.horizontal(|ui| {
             ui.label("Search: ");
             let response = ui.text_edit_singleline(&mut self.search_term);
@@ -233,7 +234,7 @@ impl LoggerUi {
                 self.regex = RegexBuilder::new(&self.search_term)
                     .case_insensitive(!self.search_case_sensitive)
                     .build()
-                    .ok()
+                    .ok();
             }
         });
 
@@ -257,7 +258,7 @@ impl LoggerUi {
             .show(ui, |ui| {
                 logger.logs.iter().for_each(|record| {
                     // Filter out categories that are disabled
-                    if let Some(&false) = logger.categories.get(&record.target) {
+                    if logger.categories.get(&record.target) == Some(&false) {
                         return;
                     }
 
@@ -299,7 +300,7 @@ impl LoggerUi {
 
         ui.horizontal(|ui| {
             ui.label(format!("Log size: {}", logger.logs.len()));
-            ui.label(format!("Displayed: {}", logs_displayed));
+            ui.label(format!("Displayed: {logs_displayed}"));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Copy").clicked() {
                     ui.output_mut(|o| {
@@ -323,11 +324,9 @@ impl LoggerUi {
 
     fn match_string(&self, string: &str) -> bool {
         if self.search_use_regex {
-            if let Some(matcher) = &self.regex {
-                matcher.is_match(string)
-            } else {
-                false
-            }
+            self.regex
+                .as_ref()
+                .map_or(false, |matcher| matcher.is_match(string))
         } else if self.search_case_sensitive {
             string.contains(&self.search_term)
         } else {
@@ -338,7 +337,7 @@ impl LoggerUi {
     }
 }
 
-/// Returns a default LoggerUi.
+/// Returns a default `LoggerUi`.
 /// You have to call [`LoggerUi::show()`] to display the logger
 pub fn logger_ui() -> LoggerUi {
     LoggerUi::default()

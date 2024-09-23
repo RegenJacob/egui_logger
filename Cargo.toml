@@ -24,7 +24,29 @@ multi_log = "0.1"
 env_logger = "0.11"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-chrono = { version = "0.4", default-features = false, features = ["alloc", "clock"] }
+chrono = { version = "0.4", default-features = false, features = [
+    "alloc",
+    "clock",
+] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-chrono = { version = "0.4", default-features = false, features = ["alloc", "clock", "wasmbind"] }
+chrono = { version = "0.4", default-features = false, features = [
+    "alloc",
+    "clock",
+    "wasmbind",
+] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+nursery = { level = "deny", priority = 0 }
+pedantic = { level = "deny", priority = 1 }
+enum_glob_use = { level = "deny", priority = 2 }
+perf = { level = "warn", priority = 3 }
+style = { level = "warn", priority = 4 }
+unwrap_used = { level = "deny", priority = 5 }
+expect_used = { level = "deny", priority = 6 }
+module_name_repetitions = { level = "allow", priority = 10 }
+must_use_candidate = { level = "allow", priority = 11 }
+return_self_not_must_use = { level = "allow", priority = 12 }

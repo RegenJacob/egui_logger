@@ -41,7 +41,7 @@ impl Builder {
     /// Returns the Logger.
     /// Useful if you want to add it to a multi-logger.
     /// See [here](https://github.com/RegenJacob/egui_logger/blob/main/examples/multi_log.rs) for an example.
-    pub fn build(self) -> EguiLogger {
+    pub const fn build(self) -> EguiLogger {
         EguiLogger
     }
 
@@ -49,7 +49,7 @@ impl Builder {
     /// this only has an effect when calling [`init()`].
     ///
     /// Defaults to [Debug](`log::LevelFilter::Debug`).
-    pub fn max_level(mut self, max_level: log::LevelFilter) -> Self {
+    pub const fn max_level(mut self, max_level: log::LevelFilter) -> Self {
         self.max_level = max_level;
         self
     }
@@ -57,7 +57,8 @@ impl Builder {
     /// Initializes the global logger.
     /// This should be called very early in the program.
     ///
-    /// The max level is the [max_level](Self::max_level) field.
+    /// The max level is the `[max_level](Self::max_level)` field.
+    #[allow(clippy::missing_errors_doc)] // TODO: add error doc
     pub fn init(self) -> Result<(), SetLoggerError> {
         log::set_logger(&EguiLogger).map(|()| log::set_max_level(self.max_level))
     }
@@ -95,6 +96,7 @@ impl log::Log for EguiLogger {
 /// Defaults to max level Debug.
 ///
 /// This is now deprecated, use [`builder()`] instead.
+#[allow(clippy::missing_errors_doc)] // TODO: add error doc
 #[deprecated(
     since = "0.5.0",
     note = "Please use `egui_logger::builder().init()` instead"
@@ -107,6 +109,7 @@ pub fn init() -> Result<(), SetLoggerError> {
 /// use [`Trace`](log::LevelFilter::Trace) with caution
 ///
 /// This is now deprecated, use [`builder()`] instead.
+#[allow(clippy::missing_errors_doc)] // TODO: add error doc
 #[deprecated(
     since = "0.5.0",
     note = "Please use `egui_logger::builder().max_level(max_level).init()` instead"
