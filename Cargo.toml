@@ -1,6 +1,6 @@
 [package]
 name = "egui_logger"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 authors = ["Jacob <RegenJacob@gmx.de>"]
 license = "MIT"
@@ -14,12 +14,12 @@ include = ["src/*.rs", "Cargo.toml", "LICENSE"]
 
 [dependencies]
 log = "0.4"
-egui = "0.28"
+egui = "0.29"
 regex = "1.10"
-hashbrown = "0.14"
+hashbrown = "0.15"
 
 [dev-dependencies]
-eframe = "0.28"
+eframe = "0.29"
 multi_log = "0.1"
 env_logger = "0.11"
 
