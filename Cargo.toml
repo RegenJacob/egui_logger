@@ -15,7 +15,7 @@ include = ["src/*.rs", "Cargo.toml", "LICENSE"]
 [dependencies]
 log = "0.4"
 egui = "0.29"
-regex = "1.10"
+regex = "1.11"
 hashbrown = "0.15"
 
 [dev-dependencies]
