@@ -14,12 +14,12 @@ include = ["src/*.rs", "Cargo.toml", "LICENSE"]
 
 [dependencies]
 log = "0.4"
-egui = "0.29"
+egui = "0.30"
 regex = "1.11"
 hashbrown = "0.15"
 
 [dev-dependencies]
-eframe = "0.29"
+eframe = "0.30"
 multi_log = "0.1"
 env_logger = "0.11"
 
