@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use egui::{text::LayoutJob, Align, Color32, FontSelection, RichText, Style};
+use egui::{text::LayoutJob, Align, Color32, FontSelection, OutputCommand, RichText, Style};
 use regex::{Regex, RegexBuilder};
 
 use crate::{Logger, Record, LEVELS, LOGGER};
@@ -302,20 +302,18 @@ impl LoggerUi {
             ui.label(format!("Displayed: {}", logs_displayed));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Copy").clicked() {
-                    ui.output_mut(|o| {
-                        let mut out_string = String::new();
-                        logger
-                            .logs
-                            .iter()
-                            .take(self.max_log_length)
-                            .for_each(|record| {
-                                out_string.push_str(
-                                    &format_record(logger, &self.style, record, time_padding).text,
-                                );
-                                out_string.push_str(" \n");
-                            });
-                        o.copied_text = out_string;
-                    });
+                    let mut out_string = String::new();
+                    logger
+                        .logs
+                        .iter()
+                        .take(self.max_log_length)
+                        .for_each(|record| {
+                            out_string.push_str(
+                                &format_record(logger, &self.style, record, time_padding).text,
+                            );
+                            out_string.push_str(" \n");
+                        });
+                    ui.ctx().copy_text(out_string);
                 }
             });
         });
