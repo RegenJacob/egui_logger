@@ -21,7 +21,15 @@ const LEVELS: [log::Level; log::Level::Trace as usize] = [
 /// The logger for egui
 /// You might want to use [`builder()`] instead.
 /// To get a builder with default values.
-pub struct EguiLogger;
+pub struct EguiLogger {
+    max_level: log::LevelFilter,
+}
+
+impl EguiLogger {
+    fn new(max_level: log::LevelFilter) -> Self {
+        Self { max_level }
+    }
+}
 
 /// The builder for the logger.
 /// You can use [`builder()`] to get an instance of this.
@@ -42,7 +50,7 @@ impl Builder {
     /// Useful if you want to add it to a multi-logger.
     /// See [here](https://github.com/RegenJacob/egui_logger/blob/main/examples/multi_log.rs) for an example.
     pub fn build(self) -> EguiLogger {
-        EguiLogger
+        EguiLogger::new(self.max_level)
     }
 
     /// Sets the max level for the logger
@@ -59,13 +67,14 @@ impl Builder {
     ///
     /// The max level is the [max_level](Self::max_level) field.
     pub fn init(self) -> Result<(), SetLoggerError> {
-        log::set_logger(&EguiLogger).map(|()| log::set_max_level(self.max_level))
+        log::set_max_level(self.max_level);
+        log::set_boxed_logger(Box::new(self.build()))
     }
 }
 
 impl log::Log for EguiLogger {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.level() <= log::STATIC_MAX_LEVEL
+        metadata.level() <= self.max_level
     }
 
     fn log(&self, record: &log::Record) {
