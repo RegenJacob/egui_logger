@@ -1,10 +1,10 @@
 #![doc = include_str!("../README.md")]
 mod ui;
 
+use std::collections::{HashMap, VecDeque};
 use std::sync::LazyLock;
 use std::sync::Mutex;
 
-use hashbrown::HashMap;
 pub use ui::logger_ui;
 pub use ui::LoggerUi;
 
@@ -80,7 +80,7 @@ impl log::Log for EguiLogger {
     fn log(&self, record: &log::Record) {
         if self.enabled(record.metadata()) {
             if let Ok(ref mut logger) = LOGGER.lock() {
-                logger.logs.push(Record {
+                logger.logs.push_back(Record {
                     level: record.level(),
                     message: record.args().to_string(),
                     target: record.target().to_string(),
@@ -132,14 +132,14 @@ struct Record {
 }
 
 struct Logger {
-    logs: Vec<Record>,
+    logs: VecDeque<Record>,
     categories: HashMap<String, bool>,
     max_category_length: usize,
     start_time: chrono::DateTime<chrono::Local>,
 }
 static LOGGER: LazyLock<Mutex<Logger>> = LazyLock::new(|| {
     Mutex::new(Logger {
-        logs: Vec::new(),
+        logs: VecDeque::new(),
         categories: HashMap::new(),
         max_category_length: 0,
         start_time: chrono::Local::now(),

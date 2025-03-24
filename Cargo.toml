@@ -16,7 +16,6 @@ include = ["src/*.rs", "Cargo.toml", "LICENSE"]
 log = "0.4"
 egui = "0.31"
 regex = "1.11"
-hashbrown = "0.15"
 
 [dev-dependencies]
 eframe = "0.31"

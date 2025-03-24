@@ -246,7 +246,7 @@ impl LoggerUi {
 
         let mut logs_displayed: usize = 0;
 
-        let time_padding = logger.logs.last().map_or(0, |record| {
+        let time_padding = logger.logs.back().map_or(0, |record| {
             format_time(record.time, &self.style, logger.start_time).len()
         });
 
