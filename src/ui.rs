@@ -46,7 +46,7 @@ impl Default for LoggerStyle {
 }
 
 /// The Ui for the Logger.
-/// You can use [`logger_ui()`] to get a default instance of the LoggerUi
+/// You can use [`logger_ui()`] to get a default instance of the LoggerUi.
 pub struct LoggerUi {
     loglevels: [bool; log::Level::Trace as usize],
     search_term: String,
@@ -72,42 +72,45 @@ impl Default for LoggerUi {
 }
 
 impl LoggerUi {
-    /// Enable or disable the regex search
-    /// Default is true
+    /// Enable or disable the regex search.
+    /// True by default.
     #[inline] // i think the compiler already does this
     pub fn enable_regex(mut self, enable: bool) -> Self {
         self.style.enable_regex = enable;
         self
     }
 
-    /// Enable or disable the context menu
-    /// Default is true
+    /// Enable or disable the context menu.
+    /// True by default.
     #[inline]
     pub fn enable_ctx_menu(mut self, enable: bool) -> Self {
         self.style.enable_ctx_menu = enable;
         self
     }
 
-    /// Enable or disable showing the [target](log::Record::target())
-    /// Default is true
+    /// Enable or disable showing the [target](log::Record::target()).
+    /// True by default.
     #[inline]
     pub fn show_target(mut self, enable: bool) -> Self {
         self.style.show_target = enable;
         self
     }
 
+    /// Set the color for warning messages.
     #[inline]
     pub fn warn_color(mut self, color: Color32) -> Self {
         self.style.warn_color = color;
         self
     }
 
+    /// Set the color for error messages.
     #[inline]
     pub fn error_color(mut self, color: Color32) -> Self {
         self.style.error_color = color;
         self
     }
 
+    /// Set the color for log messages that are neither errors nor warnings.
     #[inline]
     pub fn highlight_color(mut self, color: Color32) -> Self {
         self.style.highlight_color = color;
@@ -119,7 +122,7 @@ impl LoggerUi {
         LOGGER_UI.get_or_init(|| self.into())
     }
 
-    /// This draws the Logger UI
+    /// This draws the Logger UI.
     pub fn show(self, ui: &mut egui::Ui) {
         if let Ok(ref mut logger_ui) = self.log_ui().lock() {
             logger_ui.ui(ui);
@@ -337,7 +340,7 @@ impl LoggerUi {
 }
 
 /// Returns a default LoggerUi.
-/// You have to call [`LoggerUi::show()`] to display the logger
+/// You have to call [`LoggerUi::show()`] to display the logger.
 pub fn logger_ui() -> LoggerUi {
     LoggerUi::default()
 }
