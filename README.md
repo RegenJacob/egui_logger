@@ -4,15 +4,15 @@
 
 
 # egui_logger
-This library implements [`log`](https://crates.io/crates/log) logging support into [`egui`](https://crates.io/crates/egui) applications.
-There is also advanced search via regex.
+This library implements a UI for displaying [`log`](https://crates.io/crates/log) messages in [`egui`](https://crates.io/crates/egui) applications.
+There are also various ways to filter the logging output within the UI, such as a regex search through the messages.
 
 ## Demo
 ![demo](images/egui_logger.png "Demo")
 
 ## Example
 
-### initilazing:
+### Initializing:
 ```rust
 fn main() {
   // Should be called very early in the program.
@@ -20,8 +20,7 @@ fn main() {
 }
 ```
 
-### inside your ui logic:
-
+### Inside your UI logic:
 ```rust
 fn ui(ctx: &egui::Context) {
     egui::Window::new("Log").show(ctx, |ui| {
@@ -32,7 +31,7 @@ fn ui(ctx: &egui::Context) {
 ```
 
 ## Alternatives
-- [egui_tracing](https://crates.io/crates/egui_tracing) primarily for the [tracing](https://crates.io/crates/tracing) create, but also supports log.
+- [egui_tracing](https://crates.io/crates/egui_tracing) primarily for the [tracing](https://crates.io/crates/tracing) crate, but also supports log.
 
 ## Contribution
 Feel free to open issues and pull requests.

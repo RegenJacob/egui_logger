@@ -19,8 +19,7 @@ const LEVELS: [log::Level; log::Level::Trace as usize] = [
 ];
 
 /// The logger for egui
-/// You might want to use [`builder()`] instead.
-/// To get a builder with default values.
+/// You might want to use [`builder()`] instead to get a builder with default values.
 pub struct EguiLogger;
 
 /// The builder for the logger.
@@ -45,8 +44,8 @@ impl Builder {
         EguiLogger
     }
 
-    /// Sets the max level for the logger
-    /// this only has an effect when calling [`init()`].
+    /// Sets the max level for the logger.
+    /// This only has an effect when calling [`init()`].
     ///
     /// Defaults to [Debug](`log::LevelFilter::Debug`).
     pub fn max_level(mut self, max_level: log::LevelFilter) -> Self {
@@ -137,28 +136,26 @@ static LOGGER: LazyLock<Mutex<Logger>> = LazyLock::new(|| {
     })
 });
 
-/**
-This returns the Log builder with default values.
-This is just a conveniend way to get call [`Builder::default()`].
-[Read more](`crate::Builder`)
-
-Example:
-```rust
-use log::LevelFilter;
-# #[allow(clippy::needless_doctest_main)]
-fn main() {
-    // initialize the logger.
-    // You have to open the ui later within your egui context logic.
-    // You should call this very early in the program.
-    egui_logger::builder()
-        .max_level(LevelFilter::Info) // defaults to Debug
-        .init()
-        .unwrap();
-
-    // ...
-}
-```
-*/
+/// This returns the Log builder with default values.
+/// This is just a convenient way to get [`Builder::default()`].
+/// [Read more](`crate::Builder`)
+///
+/// Example:
+/// ```rust
+/// use log::LevelFilter;
+/// # #[allow(clippy::needless_doctest_main)]
+/// fn main() {
+///     // Initialize the logger.
+///     // You have to open the ui later within your egui context logic.
+///     // You should call this very early in the program.
+///     egui_logger::builder()
+///         .max_level(LevelFilter::Info) // defaults to Debug
+///         .init()
+///         .unwrap();
+///
+///     // ...
+/// }
+/// ```
 pub fn builder() -> Builder {
     Builder::default()
 }
