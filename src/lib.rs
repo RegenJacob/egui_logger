@@ -1,7 +1,7 @@
 #![doc = include_str!("../README.md")]
 mod ui;
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::sync::LazyLock;
 use std::sync::Mutex;
 
@@ -54,7 +54,7 @@ impl Builder {
     }
 
     /// Sets the max level for the logger
-    /// this only has an effect when calling [`init()`].
+    /// this only has an effect when calling [init](Self::init).
     ///
     /// Defaults to [Debug](`log::LevelFilter::Debug`).
     pub fn max_level(mut self, max_level: log::LevelFilter) -> Self {
@@ -66,6 +66,7 @@ impl Builder {
     /// This should be called very early in the program.
     ///
     /// The max level is the [max_level](Self::max_level) field.
+    #[cfg(all(feature = "std", target_has_atomic = "ptr"))]
     pub fn init(self) -> Result<(), SetLoggerError> {
         log::set_max_level(self.max_level);
         log::set_boxed_logger(Box::new(self.build()))
@@ -80,7 +81,7 @@ impl log::Log for EguiLogger {
     fn log(&self, record: &log::Record) {
         if self.enabled(record.metadata()) {
             if let Ok(ref mut logger) = LOGGER.lock() {
-                logger.logs.push_back(Record {
+                logger.logs.push(Record {
                     level: record.level(),
                     message: record.args().to_string(),
                     target: record.target().to_string(),
@@ -108,6 +109,7 @@ impl log::Log for EguiLogger {
     since = "0.5.0",
     note = "Please use `egui_logger::builder().init()` instead"
 )]
+#[cfg(all(feature = "std", target_has_atomic = "ptr"))]
 pub fn init() -> Result<(), SetLoggerError> {
     builder().init()
 }
@@ -120,6 +122,7 @@ pub fn init() -> Result<(), SetLoggerError> {
     since = "0.5.0",
     note = "Please use `egui_logger::builder().max_level(max_level).init()` instead"
 )]
+#[cfg(all(feature = "std", target_has_atomic = "ptr"))]
 pub fn init_with_max_level(max_level: log::LevelFilter) -> Result<(), SetLoggerError> {
     builder().max_level(max_level).init()
 }
@@ -132,14 +135,14 @@ struct Record {
 }
 
 struct Logger {
-    logs: VecDeque<Record>,
+    logs: Vec<Record>,
     categories: HashMap<String, bool>,
     max_category_length: usize,
     start_time: chrono::DateTime<chrono::Local>,
 }
 static LOGGER: LazyLock<Mutex<Logger>> = LazyLock::new(|| {
     Mutex::new(Logger {
-        logs: VecDeque::new(),
+        logs: Vec::new(),
         categories: HashMap::new(),
         max_category_length: 0,
         start_time: chrono::Local::now(),

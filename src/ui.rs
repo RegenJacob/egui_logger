@@ -246,7 +246,7 @@ impl LoggerUi {
 
         let mut logs_displayed: usize = 0;
 
-        let time_padding = logger.logs.back().map_or(0, |record| {
+        let time_padding = logger.logs.last().map_or(0, |record| {
             format_time(record.time, &self.style, logger.start_time).len()
         });
 
@@ -267,7 +267,7 @@ impl LoggerUi {
 
                     // Filter out log levels that are disabled via regex or log level
                     if (!self.search_term.is_empty() && !self.match_string(&raw_text))
-                        || !(self.loglevels[record.level as usize - 1])
+                        || !self.loglevels[record.level as usize - 1]
                     {
                         return;
                     }
@@ -300,7 +300,7 @@ impl LoggerUi {
         ui.horizontal(|ui| {
             ui.label(format!("Log size: {}", logger.logs.len()));
             ui.label(format!("Displayed: {}", logs_displayed));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                 if ui.button("Copy").clicked() {
                     let mut out_string = String::new();
                     logger
