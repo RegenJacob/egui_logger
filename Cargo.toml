@@ -17,10 +17,6 @@ log = "0.4"
 egui = "0.31"
 regex = "1.11"
 
-[features]
-default = ["std"]
-std = ["log/std"]
-
 [dev-dependencies]
 eframe = "0.31"
 multi_log = "0.1"

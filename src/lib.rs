@@ -66,10 +66,9 @@ impl Builder {
     /// This should be called very early in the program.
     ///
     /// The max level is the [max_level](Self::max_level) field.
-    #[cfg(all(feature = "std", target_has_atomic = "ptr"))]
     pub fn init(self) -> Result<(), SetLoggerError> {
         log::set_max_level(self.max_level);
-        log::set_boxed_logger(Box::new(self.build()))
+        log::set_logger(Box::leak(Box::new(self.build())))
     }
 }
 
@@ -109,7 +108,6 @@ impl log::Log for EguiLogger {
     since = "0.5.0",
     note = "Please use `egui_logger::builder().init()` instead"
 )]
-#[cfg(all(feature = "std", target_has_atomic = "ptr"))]
 pub fn init() -> Result<(), SetLoggerError> {
     builder().init()
 }
@@ -122,7 +120,6 @@ pub fn init() -> Result<(), SetLoggerError> {
     since = "0.5.0",
     note = "Please use `egui_logger::builder().max_level(max_level).init()` instead"
 )]
-#[cfg(all(feature = "std", target_has_atomic = "ptr"))]
 pub fn init_with_max_level(max_level: log::LevelFilter) -> Result<(), SetLoggerError> {
     builder().max_level(max_level).init()
 }
