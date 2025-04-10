@@ -16,14 +16,24 @@ enum TimeFormat {
     Utc,
     LocalTime,
     SinceStart,
+    Hide,
 }
 
 struct LoggerStyle {
     enable_regex: bool,
     enable_ctx_menu: bool,
-    show_target: bool,
+    enable_log_count: bool,
+    enable_copy_button: bool,
+    enable_search: bool,
+    enable_max_log_output: bool,
+    enable_levels_button: bool,
+    enable_categories_button: bool,
+    enable_time_button: bool,
     time_precision: TimePrecision,
+    show_target: bool,
     time_format: TimeFormat,
+    include_target: bool,
+    include_level: bool,
 
     warn_color: Color32,
     error_color: Color32,
@@ -36,17 +46,26 @@ impl Default for LoggerStyle {
             show_target: true,
             enable_regex: true,
             enable_ctx_menu: true,
+            include_target: true,
+            include_level: true,
             time_format: TimeFormat::LocalTime,
             time_precision: TimePrecision::Seconds,
             warn_color: Color32::YELLOW,
             error_color: Color32::RED,
             highlight_color: Color32::LIGHT_GRAY,
+            enable_log_count: true,
+            enable_copy_button: true,
+            enable_search: true,
+            enable_max_log_output: true,
+            enable_levels_button: true,
+            enable_categories_button: true,
+            enable_time_button: true,
         }
     }
 }
 
 /// The Ui for the Logger.
-/// You can use [`logger_ui()`] to get a default instance of the LoggerUi
+/// You can use [`logger_ui()`] to get a default instance of the LoggerUi.
 pub struct LoggerUi {
     loglevels: [bool; log::Level::Trace as usize],
     search_term: String,
@@ -72,45 +91,151 @@ impl Default for LoggerUi {
 }
 
 impl LoggerUi {
-    /// Enable or disable the regex search
-    /// Default is true
+    /// Enable or disable the regex search.
+    /// True by default.
     #[inline] // i think the compiler already does this
     pub fn enable_regex(mut self, enable: bool) -> Self {
         self.style.enable_regex = enable;
         self
     }
 
-    /// Enable or disable the context menu
-    /// Default is true
+    /// Enable or disable the context menu.
+    /// True by default.
     #[inline]
     pub fn enable_ctx_menu(mut self, enable: bool) -> Self {
         self.style.enable_ctx_menu = enable;
         self
     }
 
-    /// Enable or disable showing the [target](log::Record::target())
-    /// Default is true
+    /// Enable or disable showing the [target](log::Record::target()) in the context menu.
+    /// True by default.
     #[inline]
     pub fn show_target(mut self, enable: bool) -> Self {
         self.style.show_target = enable;
         self
     }
 
+    /// Enable or disable showing the [target](log::Record::target()) in the records.
+    /// True by default.
+    #[inline]
+    pub fn include_target(mut self, enable: bool) -> Self {
+        self.style.include_target = enable;
+        self
+    }
+
+    /// Enable or disable showing the [level](log::Record::level) in the records.
+    /// True by default.
+    #[inline]
+    pub fn include_level(mut self, enable: bool) -> Self {
+        self.style.include_level = enable;
+        self
+    }
+
+    /// Enable or disable the copy button.
+    /// True by default.
+    #[inline]
+    pub fn enable_copy_button(mut self, enable: bool) -> Self {
+        self.style.enable_copy_button = enable;
+        self
+    }
+
+    /// Enable or disable the count of how many log messages there are.
+    /// True by default.
+    #[inline]
+    pub fn enable_log_count(mut self, enable: bool) -> Self {
+        self.style.enable_log_count = enable;
+        self
+    }
+
+    /// Enable or disable the count of how many log messages there are.
+    /// True by default.
+    #[inline]
+    pub fn enable_search(mut self, enable: bool) -> Self {
+        self.style.enable_search = enable;
+        self
+    }
+
+    /// Enable or disable the configurable field for the maximum number of shown log output messages.
+    /// True by default.
+    #[inline]
+    pub fn enable_max_log_output(mut self, enable: bool) -> Self {
+        self.style.enable_max_log_output = enable;
+        self
+    }
+
+    /// Enable or disable the button to configure the log levels.
+    /// True by default.
+    #[inline]
+    pub fn enable_levels_button(mut self, enable: bool) -> Self {
+        self.style.enable_levels_button = enable;
+        self
+    }
+
+    /// Enable or disable the button to configure the log categories.
+    /// True by default.
+    #[inline]
+    pub fn enable_categories_button(mut self, enable: bool) -> Self {
+        self.style.enable_categories_button = enable;
+        self
+    }
+
+    /// Enable or disable the button to configure the time format.
+    /// True by default.
+    #[inline]
+    pub fn enable_time_button(mut self, enable: bool) -> Self {
+        self.style.enable_time_button = enable;
+        self
+    }
+
+    /// Set the color for warning messages.
     #[inline]
     pub fn warn_color(mut self, color: Color32) -> Self {
         self.style.warn_color = color;
         self
     }
 
+    /// Set the color for error messages.
     #[inline]
     pub fn error_color(mut self, color: Color32) -> Self {
         self.style.error_color = color;
         self
     }
 
+    /// Set the color for log messages that are neither errors nor warnings.
     #[inline]
     pub fn highlight_color(mut self, color: Color32) -> Self {
         self.style.highlight_color = color;
+        self
+    }
+
+    /// Set which log levels should be enabled.
+    /// The `log_levels` are specified as a boolean array where the first element
+    /// corresponds to the `ERROR` level and the last one to the `TRACE` level.
+    #[inline]
+    pub fn log_levels(mut self, log_levels: [bool; log::Level::Trace as usize]) -> Self {
+        self.loglevels = log_levels;
+        self
+    }
+
+    /// Set which log levels should be enabled.
+    ///
+    /// # Panics
+    /// Panics if the lock to the logger could not be acquired.
+    #[inline]
+    pub fn enable_category(self, category: String, enable: bool) -> Self {
+        LOGGER
+            .lock()
+            .as_mut()
+            .expect("could not lock LOGGER")
+            .categories
+            .insert(category, enable);
+        self
+    }
+
+    /// Set the maximum number of log messages that should be retained.
+    #[inline]
+    pub fn max_log_length(mut self, max_length: usize) -> Self {
+        self.max_log_length = max_length;
         self
     }
 
@@ -119,7 +244,7 @@ impl LoggerUi {
         LOGGER_UI.get_or_init(|| self.into())
     }
 
-    /// This draws the Logger UI
+    /// This draws the Logger UI.
     pub fn show(self, ui: &mut egui::Ui) {
         if let Ok(ref mut logger_ui) = self.log_ui().lock() {
             logger_ui.ui(ui);
@@ -142,105 +267,118 @@ impl LoggerUi {
             if ui.button("Clear").clicked() {
                 logger.logs.clear();
             }
-            ui.menu_button("Log Levels", |ui| {
-                for level in LEVELS {
-                    if ui
-                        .selectable_label(self.loglevels[level as usize - 1], level.as_str())
-                        .clicked()
-                    {
-                        self.loglevels[level as usize - 1] = !self.loglevels[level as usize - 1];
+
+            if self.style.enable_levels_button {
+                ui.menu_button("Log Levels", |ui| {
+                    for level in LEVELS {
+                        if ui
+                            .selectable_label(self.loglevels[level as usize - 1], level.as_str())
+                            .clicked()
+                        {
+                            self.loglevels[level as usize - 1] =
+                                !self.loglevels[level as usize - 1];
+                        }
                     }
-                }
-            });
-
-            ui.menu_button("Categories", |ui| {
-                if ui.button("Select All").clicked() {
-                    for (_, enabled) in logger.categories.iter_mut() {
-                        *enabled = true;
-                    }
-                }
-
-                if ui.button("Unselect All").clicked() {
-                    for (_, enabled) in logger.categories.iter_mut() {
-                        *enabled = false;
-                    }
-                }
-
-                for (category, enabled) in logger.categories.iter_mut() {
-                    if ui.selectable_label(*enabled, category).clicked() {
-                        *enabled = !*enabled;
-                    }
-                }
-            });
-
-            ui.menu_button("Time", |ui| {
-                ui.radio_value(&mut self.style.time_format, TimeFormat::Utc, "UTC");
-                ui.radio_value(
-                    &mut self.style.time_format,
-                    TimeFormat::LocalTime,
-                    "Local Time",
-                );
-                ui.radio_value(
-                    &mut self.style.time_format,
-                    TimeFormat::SinceStart,
-                    "Since Start",
-                );
-
-                ui.separator();
-
-                ui.radio_value(
-                    &mut self.style.time_precision,
-                    TimePrecision::Seconds,
-                    "Seconds",
-                );
-                ui.radio_value(
-                    &mut self.style.time_precision,
-                    TimePrecision::Milliseconds,
-                    "Milliseconds",
-                );
-            });
-        });
-
-        ui.horizontal(|ui| {
-            ui.label("Search: ");
-            let response = ui.text_edit_singleline(&mut self.search_term);
-
-            let mut config_changed = false;
-
-            if ui
-                .selectable_label(self.search_case_sensitive, "Aa")
-                .on_hover_text("Case sensitive")
-                .clicked()
-            {
-                self.search_case_sensitive = !self.search_case_sensitive;
-                config_changed = true;
+                });
             }
 
-            if self.style.enable_regex
-                && ui
-                    .selectable_label(self.search_use_regex, ".*")
-                    .on_hover_text("Use regex")
+            if self.style.enable_categories_button {
+                ui.menu_button("Categories", |ui| {
+                    if ui.button("Select All").clicked() {
+                        for (_, enabled) in logger.categories.iter_mut() {
+                            *enabled = true;
+                        }
+                    }
+
+                    if ui.button("Unselect All").clicked() {
+                        for (_, enabled) in logger.categories.iter_mut() {
+                            *enabled = false;
+                        }
+                    }
+
+                    for (category, enabled) in logger.categories.iter_mut() {
+                        if ui.selectable_label(*enabled, category).clicked() {
+                            *enabled = !*enabled;
+                        }
+                    }
+                });
+            }
+
+            if self.style.enable_time_button {
+                ui.menu_button("Time", |ui| {
+                    ui.radio_value(&mut self.style.time_format, TimeFormat::Utc, "UTC");
+                    ui.radio_value(
+                        &mut self.style.time_format,
+                        TimeFormat::LocalTime,
+                        "Local Time",
+                    );
+                    ui.radio_value(
+                        &mut self.style.time_format,
+                        TimeFormat::SinceStart,
+                        "Since Start",
+                    );
+                    ui.radio_value(&mut self.style.time_format, TimeFormat::Hide, "Hide");
+
+                    ui.separator();
+
+                    ui.radio_value(
+                        &mut self.style.time_precision,
+                        TimePrecision::Seconds,
+                        "Seconds",
+                    );
+                    ui.radio_value(
+                        &mut self.style.time_precision,
+                        TimePrecision::Milliseconds,
+                        "Milliseconds",
+                    );
+                });
+            }
+        });
+
+        if self.style.enable_search {
+            ui.horizontal(|ui| {
+                ui.label("Search: ");
+                let response = ui.text_edit_singleline(&mut self.search_term);
+
+                let mut config_changed = false;
+
+                if ui
+                    .selectable_label(self.search_case_sensitive, "Aa")
+                    .on_hover_text("Case sensitive")
                     .clicked()
-            {
-                self.search_use_regex = !self.search_use_regex;
-                config_changed = true;
-            }
+                {
+                    self.search_case_sensitive = !self.search_case_sensitive;
+                    config_changed = true;
+                }
 
-            if self.style.enable_regex
-                && self.search_use_regex
-                && (response.changed() || config_changed)
-            {
-                self.regex = RegexBuilder::new(&self.search_term)
-                    .case_insensitive(!self.search_case_sensitive)
-                    .build()
-                    .ok()
-            }
-        });
+                if self.style.enable_regex
+                    && ui
+                        .selectable_label(self.search_use_regex, ".*")
+                        .on_hover_text("Use regex")
+                        .clicked()
+                {
+                    self.search_use_regex = !self.search_use_regex;
+                    config_changed = true;
+                }
 
-        ui.horizontal(|ui| {
-            ui.label("Max Log output");
-            ui.add(egui::widgets::DragValue::new(&mut self.max_log_length).speed(1));
-        });
+                if self.style.enable_regex
+                    && self.search_use_regex
+                    && (response.changed() || config_changed)
+                {
+                    self.regex = RegexBuilder::new(&self.search_term)
+                        .case_insensitive(!self.search_case_sensitive)
+                        .build()
+                        .ok()
+                }
+            });
+        }
+
+        if self.style.enable_max_log_output {
+            ui.horizontal(|ui| {
+                ui.label("Max Log output");
+                ui.add(egui::widgets::DragValue::new(&mut self.max_log_length).speed(1));
+            });
+        }
 
         ui.separator();
 
@@ -298,24 +436,28 @@ impl LoggerUi {
             });
 
         ui.horizontal(|ui| {
-            ui.label(format!("Log size: {}", logger.logs.len()));
-            ui.label(format!("Displayed: {}", logs_displayed));
-            ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
-                if ui.button("Copy").clicked() {
-                    let mut out_string = String::new();
-                    logger
-                        .logs
-                        .iter()
-                        .take(self.max_log_length)
-                        .for_each(|record| {
-                            out_string.push_str(
-                                &format_record(logger, &self.style, record, time_padding).text,
-                            );
-                            out_string.push_str(" \n");
-                        });
-                    ui.ctx().copy_text(out_string);
-                }
-            });
+            if self.style.enable_log_count {
+                ui.label(format!("Log size: {}", logger.logs.len()));
+                ui.label(format!("Displayed: {}", logs_displayed));
+            }
+            if self.style.enable_copy_button {
+                ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
+                    if ui.button("Copy").clicked() {
+                        let mut out_string = String::new();
+                        logger
+                            .logs
+                            .iter()
+                            .take(self.max_log_length)
+                            .for_each(|record| {
+                                out_string.push_str(
+                                    &format_record(logger, &self.style, record, time_padding).text,
+                                );
+                                out_string.push_str(" \n");
+                            });
+                        ui.ctx().copy_text(out_string);
+                    }
+                });
+            }
         });
     }
 
@@ -337,7 +479,7 @@ impl LoggerUi {
 }
 
 /// Returns a default LoggerUi.
-/// You have to call [`LoggerUi::show()`] to display the logger
+/// You have to call [`LoggerUi::show()`] to display the logger.
 pub fn logger_ui() -> LoggerUi {
     LoggerUi::default()
 }
@@ -347,7 +489,7 @@ fn format_time(
     style: &LoggerStyle,
     start_time: chrono::DateTime<chrono::Local>,
 ) -> String {
-    match (style.time_format, style.time_precision) {
+    let time = match (style.time_format, style.time_precision) {
         (TimeFormat::Utc, TimePrecision::Seconds) => time
             .to_utc()
             .to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
@@ -380,6 +522,12 @@ fn format_time(
                 (h, m, s, ms) => format!("{h}h {m}m {s}s {ms}ms"),
             }
         }
+        (TimeFormat::Hide, _) => String::new(),
+    };
+    if style.time_format == TimeFormat::Hide {
+        time
+    } else {
+        time + " "
     }
 }
 
@@ -389,17 +537,25 @@ fn format_record(
     record: &Record,
     time_padding: usize,
 ) -> LayoutJob {
-    let level_target = format!(
-        "[{:5}] {: <width$}: ",
-        record.level,
-        record.target,
-        width = logger.max_category_length
-    );
+    let level_str = if logger_style.include_level {
+        format!("[{:5}] ", record.level)
+    } else {
+        String::new()
+    };
+    let target_str = if logger_style.include_target {
+        format!(
+            "{: <width$}: ",
+            record.target,
+            width = logger.max_category_length
+        )
+    } else {
+        String::new()
+    };
     let mut layout_job = LayoutJob::default();
     let style = Style::default();
 
     let mut date_str = RichText::new(format!(
-        "{: >width$} ",
+        "{: >width$}",
         format_time(record.time, logger_style, logger.start_time),
         width = time_padding
     ))
@@ -418,7 +574,7 @@ fn format_record(
         _ => logger_style.highlight_color,
     };
 
-    RichText::new(level_target)
+    RichText::new(level_str + &target_str)
         .monospace()
         .color(highlight_color)
         .append_to(&mut layout_job, &style, FontSelection::Default, Align::LEFT);

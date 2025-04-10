@@ -18,16 +18,22 @@ const LEVELS: [log::Level; log::Level::Trace as usize] = [
     log::Level::Trace,
 ];
 
-/// The logger for egui
-/// You might want to use [`builder()`] instead.
-/// To get a builder with default values.
+/// The logger for egui.
+///
+/// You might want to use [`builder()`] instead to get a builder with default values.
 pub struct EguiLogger {
+    /// The maximum log level that shall be collected.
     max_level: log::LevelFilter,
+    /// Whether to show all categories by default (versus only those that are explicitly enabled).
+    show_all_categories: bool,
 }
 
 impl EguiLogger {
-    fn new(max_level: log::LevelFilter) -> Self {
-        Self { max_level }
+    fn new(max_level: log::LevelFilter, show_all_categories: bool) -> Self {
+        Self {
+            max_level,
+            show_all_categories,
+        }
     }
 }
 
@@ -35,12 +41,14 @@ impl EguiLogger {
 /// You can use [`builder()`] to get an instance of this.
 pub struct Builder {
     max_level: log::LevelFilter,
+    show_all_categories: bool,
 }
 
 impl Default for Builder {
     fn default() -> Self {
         Self {
             max_level: log::LevelFilter::Debug,
+            show_all_categories: true,
         }
     }
 }
@@ -50,15 +58,23 @@ impl Builder {
     /// Useful if you want to add it to a multi-logger.
     /// See [here](https://github.com/RegenJacob/egui_logger/blob/main/examples/multi_log.rs) for an example.
     pub fn build(self) -> EguiLogger {
-        EguiLogger::new(self.max_level)
+        EguiLogger::new(self.max_level, self.show_all_categories)
     }
 
-    /// Sets the max level for the logger
+    /// Sets the max level for the logger.
     /// this only has an effect when calling [init](Self::init).
     ///
     /// Defaults to [Debug](`log::LevelFilter::Debug`).
     pub fn max_level(mut self, max_level: log::LevelFilter) -> Self {
         self.max_level = max_level;
+        self
+    }
+
+    /// Whether to show all categories by default (versus only those that are explicitly enabled).
+    ///
+    /// Defaults to true.
+    pub fn show_all_categories(mut self, show_all_categories: bool) -> Self {
+        self.show_all_categories = show_all_categories;
         self
     }
 
@@ -88,7 +104,9 @@ impl log::Log for EguiLogger {
                 });
 
                 if !logger.categories.contains_key(record.target()) {
-                    logger.categories.insert(record.target().to_string(), true);
+                    logger
+                        .categories
+                        .insert(record.target().to_string(), self.show_all_categories);
                     logger.max_category_length =
                         logger.max_category_length.max(record.target().len());
                 }
@@ -146,28 +164,35 @@ static LOGGER: LazyLock<Mutex<Logger>> = LazyLock::new(|| {
     })
 });
 
-/**
-This returns the Log builder with default values.
-This is just a conveniend way to get call [`Builder::default()`].
-[Read more](`crate::Builder`)
-
-Example:
-```rust
-use log::LevelFilter;
-# #[allow(clippy::needless_doctest_main)]
-fn main() {
-    // initialize the logger.
-    // You have to open the ui later within your egui context logic.
-    // You should call this very early in the program.
-    egui_logger::builder()
-        .max_level(LevelFilter::Info) // defaults to Debug
-        .init()
-        .unwrap();
-
-    // ...
+/// Clears all existing retained logs.
+pub fn clear_logs() {
+    LOGGER
+        .lock()
+        .expect("could not get access to logger")
+        .logs
+        .clear();
 }
-```
-*/
+
+/// This returns the Log builder with default values.
+/// This is just a convenient way to get [`Builder::default()`].
+/// [Read more](`crate::Builder`)
+///
+/// Example:
+/// ```rust
+/// use log::LevelFilter;
+/// # #[allow(clippy::needless_doctest_main)]
+/// fn main() {
+///     // Initialize the logger.
+///     // You have to open the ui later within your egui context logic.
+///     // You should call this very early in the program.
+///     egui_logger::builder()
+///         .max_level(LevelFilter::Info) // defaults to Debug
+///         .init()
+///         .unwrap();
+///
+///     // ...
+/// }
+/// ```
 pub fn builder() -> Builder {
     Builder::default()
 }
