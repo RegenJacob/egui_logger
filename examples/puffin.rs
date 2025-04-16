@@ -2,7 +2,6 @@
 // you can test this with:
 // cargo run --example puffin --features puffin
 
-
 use eframe::NativeOptions;
 use puffin_egui::puffin;
 
@@ -41,11 +40,11 @@ impl eframe::App for MyApp {
                 log::warn!("Warn about something")
             }
             if ui.button("This produces 1000 Warnings").clicked() {
-                (1..1000).for_each(|x| log::warn!("Warn: {}",x));
+                (1..1000).for_each(|x| log::warn!("Warn: {}", x));
                 log::warn!("Warn about something")
             }
             if ui.button("This produces 100_000 Warnings").clicked() {
-                (1..100_000).for_each(|x| log::warn!("Warn: {}",x));
+                (1..100_000).for_each(|x| log::warn!("Warn: {}", x));
                 log::warn!("Warn about something")
             }
         });

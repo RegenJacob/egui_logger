@@ -94,8 +94,6 @@ impl log::Log for EguiLogger {
     }
 
     fn log(&self, record: &log::Record) {
-        #[cfg(feature = "puffin")]
-        puffin::profile_scope!("Lock Mutex");
         if self.enabled(record.metadata()) {
             if let Ok(ref mut logger) = LOGGER.lock() {
                 logger.logs.push(Record {
