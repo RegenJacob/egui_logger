@@ -254,6 +254,8 @@ impl LoggerUi {
     }
 
     pub(crate) fn ui(&mut self, ui: &mut egui::Ui) {
+        #[cfg(feature = "puffin")]
+        puffin::profile_scope!("render logger UI");
         let Ok(ref mut logger) = LOGGER.lock() else {
             return;
         };
