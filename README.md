@@ -10,6 +10,9 @@ There are also various ways to filter the logging output within the UI, such as 
 ## Demo
 ![demo](images/egui_logger.png "Demo")
 
+## Features
+- `puffin` compatibility with the [puffin](https://crates.io/crates/puffin) crate.
+
 ## Example
 
 ### Initializing:
