@@ -117,31 +117,6 @@ impl log::Log for EguiLogger {
     fn flush(&self) {}
 }
 
-/// Initializes the global logger.
-/// Should be called very early in the program.
-/// Defaults to max level Debug.
-///
-/// This is now deprecated, use [`builder()`] instead.
-#[deprecated(
-    since = "0.5.0",
-    note = "Please use `egui_logger::builder().init()` instead"
-)]
-pub fn init() -> Result<(), SetLoggerError> {
-    builder().init()
-}
-
-/// Same as [`init()`] accepts a [`log::LevelFilter`] to set the max level
-/// use [`Trace`](log::LevelFilter::Trace) with caution
-///
-/// This is now deprecated, use [`builder()`] instead.
-#[deprecated(
-    since = "0.5.0",
-    note = "Please use `egui_logger::builder().max_level(max_level).init()` instead"
-)]
-pub fn init_with_max_level(max_level: log::LevelFilter) -> Result<(), SetLoggerError> {
-    builder().max_level(max_level).init()
-}
-
 struct Record {
     level: log::Level,
     message: String,
