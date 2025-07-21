@@ -222,13 +222,13 @@ impl LoggerUi {
     /// # Panics
     /// Panics if the lock to the logger could not be acquired.
     #[inline]
-    pub fn enable_category(self, category: String, enable: bool) -> Self {
+    pub fn enable_category(self, category: impl ToString, enable: bool) -> Self {
         LOGGER
             .lock()
             .as_mut()
             .expect("could not lock LOGGER")
             .categories
-            .insert(category, enable);
+            .insert(category.to_string(), enable);
         self
     }
 
