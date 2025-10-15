@@ -1,3 +1,6 @@
+// Currently broken!!
+// puffin_egui has to be updated
+//
 // This example needs the puffin feature enabled to work
 // you can test this with:
 // cargo run --example puffin --features puffin
