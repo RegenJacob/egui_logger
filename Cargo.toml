@@ -1,7 +1,7 @@
 [package]
 name = "egui_logger"
 version = "0.9.0"
-edition = "2021"
+edition = "2024"
 authors = ["Jacob <RegenJacob@gmx.de>"]
 license = "MIT"
 readme = "README.md"
@@ -16,7 +16,7 @@ puffin = ["dep:puffin"]
 [dependencies]
 log = "0.4"
 egui = "0.33"
-regex = "1.11"
+regex = "1.12"
 puffin = { version = "0.19",  optional = true }
 
 [dev-dependencies]
