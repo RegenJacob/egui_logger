@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 use std::sync::Mutex;
 
-pub use ui::logger_ui;
 pub use ui::LoggerUi;
+pub use ui::logger_ui;
 
 use log::SetLoggerError;
 

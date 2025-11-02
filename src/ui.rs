@@ -1,9 +1,9 @@
 use std::sync::Mutex;
 
-use egui::{text::LayoutJob, Align, Color32, FontSelection, RichText, Style};
+use egui::{Align, Color32, FontSelection, RichText, Style, text::LayoutJob};
 use regex::{Regex, RegexBuilder};
 
-use crate::{Logger, Record, LEVELS, LOGGER};
+use crate::{LEVELS, LOGGER, Logger, Record};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum TimePrecision {
