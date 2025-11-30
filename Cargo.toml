@@ -17,7 +17,7 @@ include = ["src/*.rs", "Cargo.toml", "LICENSE"]
 [dependencies]
 log = "0.4"
 egui = "0.33"
-regex = "1.11"
+regex = "1.12"
 profiling = "1.0"
 #profiling = { version = "1.0", features = ["profile-with-puffin"]}
 
