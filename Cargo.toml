@@ -11,19 +11,23 @@ categories = ["gui", "game-development", "development-tools::debugging"]
 include = ["src/*.rs", "Cargo.toml", "LICENSE"]
 
 [features]
-puffin = ["dep:puffin"]
+#puffin = ["dep:puffin"]
+#profiling = ["dep:profiling"]
 
 [dependencies]
 log = "0.4"
 egui = "0.33"
 regex = "1.11"
-puffin = { version = "0.19",  optional = true }
+profiling = "1.0"
+#profiling = { version = "1.0", features = ["profile-with-puffin"]}
 
 [dev-dependencies]
 eframe = "0.33"
 multi_log = "0.1"
 env_logger = "0.11"
 puffin_egui = { version = "0.29.0" }
+profiling = { version = "1.0", features = ["profile-with-tracy"]}
+puffin = "0.19"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 chrono = { version = "0.4", default-features = false, features = ["alloc", "clock"] }
@@ -33,4 +37,4 @@ chrono = { version = "0.4", default-features = false, features = ["alloc", "cloc
 
 [patch.crates-io]
 # It seems that puffin and puffin_egui are really outdated
-puffin_egui = { git = "https://github.com/EmbarkStudios/puffin.git", rev = "refs/pull/244/head" }
+puffin_egui = { git = "https://github.com/EmbarkStudios/puffin.git", rev = "refs/pull/267/head" }

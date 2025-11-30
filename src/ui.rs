@@ -248,14 +248,14 @@ impl LoggerUi {
     pub fn show(self, ui: &mut egui::Ui) {
         if let Ok(ref mut logger_ui) = self.log_ui().lock() {
             logger_ui.ui(ui);
+            profiling::finish_frame!();
         } else {
             ui.colored_label(Color32::RED, "Something went wrong loading the log");
         }
     }
 
+    #[profiling::function]
     pub(crate) fn ui(&mut self, ui: &mut egui::Ui) {
-        #[cfg(feature = "puffin")]
-        puffin::profile_scope!("render logger UI");
         let Ok(ref mut logger) = LOGGER.lock() else {
             return;
         };

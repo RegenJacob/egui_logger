@@ -28,8 +28,7 @@ impl eframe::App for MyApp {
         puffin::GlobalProfiler::lock().new_frame();
         puffin_egui::profiler_window(ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
-            #[cfg(feature = "puffin")]
-            puffin::profile_scope!("Render UI");
+            profiling::scope!("Render UI");
             if ui.button("This produces Debug Info").clicked() {
                 log::debug!("Very verbose Debug Info")
             }
@@ -57,5 +56,6 @@ impl eframe::App for MyApp {
                 .enable_regex(true) // enables regex, default is true
                 .show(ui)
         });
+        profiling::finish_frame!();
     }
 }
