@@ -1,7 +1,7 @@
 [package]
 name = "egui_logger"
 version = "0.9.0"
-edition = "2021"
+edition = "2024"
 authors = ["Jacob <RegenJacob@gmx.de>"]
 license = "MIT"
 readme = "README.md"
