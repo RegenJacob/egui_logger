@@ -6,6 +6,9 @@ fn main() {
         // If set to false, will only show explicitly enabled categories using `enable_category`
         // (see below for an example). By default, this is set to true.
         .show_all_categories(false)
+        .default_blacklist(true) // If you want to disable the default blacklist filter you
+        // probably want to add some custom blacklist rules.
+        .add_blacklist("some::long::log::target")
         .init()
         .expect("Error initializing logger");
 

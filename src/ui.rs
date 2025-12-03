@@ -390,10 +390,14 @@ impl LoggerUi {
             format_time(record.time, &self.style, logger.start_time).len()
         });
 
+        //let text_style = egui::TextStyle::Body;
+        //let row_height = ui.text_style_height(&text_style);
+
         egui::ScrollArea::vertical()
             .auto_shrink([false, true])
             .max_height(ui.available_height() - 30.0)
             .stick_to_bottom(true)
+            //.show_rows(ui, row_height,  10_000, |ui, row_range| {
             .show(ui, |ui| {
                 logger.logs.iter().for_each(|record| {
                     // Filter out categories that are disabled

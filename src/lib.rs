@@ -26,13 +26,20 @@ pub struct EguiLogger {
     max_level: log::LevelFilter,
     /// Whether to show all categories by default (versus only those that are explicitly enabled).
     show_all_categories: bool,
+
+    blacklisted: Vec<String>,
 }
 
 impl EguiLogger {
-    fn new(max_level: log::LevelFilter, show_all_categories: bool) -> Self {
+    fn new(
+        max_level: log::LevelFilter,
+        show_all_categories: bool,
+        blacklisted: Vec<String>,
+    ) -> Self {
         Self {
             max_level,
             show_all_categories,
+            blacklisted,
         }
     }
 }
@@ -42,6 +49,9 @@ impl EguiLogger {
 pub struct Builder {
     max_level: log::LevelFilter,
     show_all_categories: bool,
+    /// The default blacklist contains some `tracing` targets because they're just too fast for
+    /// egui_logger
+    blacklisted: Vec<String>,
 }
 
 impl Default for Builder {
@@ -49,6 +59,10 @@ impl Default for Builder {
         Self {
             max_level: log::LevelFilter::Debug,
             show_all_categories: true,
+            blacklisted: vec![
+                "tracing::span".to_string(),
+                "tracing::span::active".to_string(),
+            ],
         }
     }
 }
@@ -58,7 +72,7 @@ impl Builder {
     /// Useful if you want to add it to a multi-logger.
     /// See [here](https://github.com/RegenJacob/egui_logger/blob/main/examples/multi_log.rs) for an example.
     pub fn build(self) -> EguiLogger {
-        EguiLogger::new(self.max_level, self.show_all_categories)
+        EguiLogger::new(self.max_level, self.show_all_categories, self.blacklisted)
     }
 
     /// Sets the max level for the logger.
@@ -78,6 +92,24 @@ impl Builder {
         self
     }
 
+    /// Whether or not the buildin blacklist is enabled.
+    /// This just clears the blacklist so you should add custom rules after this.
+    ///
+    /// Defaults to true
+    pub fn default_blacklist(mut self, default_blacklist: bool) -> Self {
+        if default_blacklist {
+            self
+        } else {
+            self.blacklisted = vec![];
+            self
+        }
+    }
+
+    pub fn add_blacklist(mut self, target: impl ToString) -> Self {
+        self.blacklisted.push(target.to_string());
+        self
+    }
+
     /// Initializes the global logger.
     /// This should be called very early in the program.
     ///
@@ -91,25 +123,25 @@ impl Builder {
 impl log::Log for EguiLogger {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
         metadata.level() <= self.max_level
+            && !self.blacklisted.contains(&metadata.target().to_string())
     }
 
     fn log(&self, record: &log::Record) {
-        if self.enabled(record.metadata()) {
-            if let Ok(ref mut logger) = LOGGER.lock() {
-                logger.logs.push(Record {
-                    level: record.level(),
-                    message: record.args().to_string(),
-                    target: record.target().to_string(),
-                    time: chrono::Local::now(),
-                });
+        if self.enabled(record.metadata())
+            && let Ok(ref mut logger) = LOGGER.lock()
+        {
+            logger.logs.push(Record {
+                level: record.level(),
+                message: record.args().to_string(),
+                target: record.target().to_string(),
+                time: chrono::Local::now(),
+            });
 
-                if !logger.categories.contains_key(record.target()) {
-                    logger
-                        .categories
-                        .insert(record.target().to_string(), self.show_all_categories);
-                    logger.max_category_length =
-                        logger.max_category_length.max(record.target().len());
-                }
+            if !logger.categories.contains_key(record.target()) {
+                logger
+                    .categories
+                    .insert(record.target().to_string(), self.show_all_categories);
+                logger.max_category_length = logger.max_category_length.max(record.target().len());
             }
         }
     }
