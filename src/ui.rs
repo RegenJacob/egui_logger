@@ -390,26 +390,24 @@ impl LoggerUi {
             format_time(record.time, &self.style, logger.start_time).len()
         });
 
-        //let text_style = egui::TextStyle::Body;
-        //let row_height = ui.text_style_height(&text_style);
+        let filtered_logs: Vec<&Record> = logger
+            .logs
+            .iter()
+            .filter(|r| self.loglevels[r.level as usize - 1])
+            .filter(|r| logger.categories.contains_key(&r.target))
+            .collect();
 
         egui::ScrollArea::vertical()
-            .auto_shrink([false, true])
+            .auto_shrink([false, false])
             .max_height(ui.available_height() - 30.0)
-            .stick_to_bottom(true)
-            //.show_rows(ui, row_height,  10_000, |ui, row_range| {
             .show(ui, |ui| {
-                logger.logs.iter().for_each(|record| {
-                    // Filter out categories that are disabled
-                    if let Some(&false) = logger.categories.get(&record.target) {
-                        return;
-                    }
-
+                filtered_logs.iter().for_each(|record| {
                     let layout_job = format_record(logger, &self.style, record, time_padding);
 
                     let raw_text = layout_job.text.clone();
 
                     // Filter out log levels that are disabled via regex or log level
+                    // TODO: maybe filter this via filtereded_logs too?
                     if (!self.search_term.is_empty() && !self.match_string(&raw_text))
                         || !self.loglevels[record.level as usize - 1]
                     {
@@ -426,7 +424,6 @@ impl LoggerUi {
                             response.highlight();
                             let string_format = format!("[{}]: {}", record.level, record.message);
 
-                            // the vertical layout is because otherwise text spacing gets weird
                             ui.vertical(|ui| {
                                 ui.monospace(string_format);
                             });
