@@ -33,4 +33,4 @@ chrono = { version = "0.4", default-features = false, features = ["alloc", "cloc
 
 [patch.crates-io]
 # It seems that puffin and puffin_egui are really outdated
-puffin_egui = { git = "https://github.com/EmbarkStudios/puffin.git", rev = "refs/pull/244/head" }
+puffin_egui = { git = "https://github.com/EmbarkStudios/puffin.git", rev = "refs/pull/267/head" }
