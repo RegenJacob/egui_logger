@@ -105,6 +105,7 @@ impl Builder {
         }
     }
 
+    /// This adds a `log` target to the blacklist.
     pub fn add_blacklist(mut self, target: impl ToString) -> Self {
         self.blacklisted.push(target.to_string());
         self
