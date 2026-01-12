@@ -394,7 +394,7 @@ impl LoggerUi {
             .logs
             .iter()
             .filter(|r| self.loglevels[r.level as usize - 1])
-            .filter(|r| logger.categories.contains_key(&r.target))
+            .filter(|record| !matches!(logger.categories.get(&record.target), Some(false)))
             .collect();
 
         egui::ScrollArea::vertical()
