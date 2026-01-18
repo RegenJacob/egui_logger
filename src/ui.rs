@@ -74,6 +74,8 @@ pub struct LoggerUi {
     search_use_regex: bool,
     max_log_length: usize,
     style: LoggerStyle,
+    /// Cached search results: true if record matches current search
+    search_cache: Vec<bool>,
 }
 
 impl Default for LoggerUi {
@@ -86,6 +88,7 @@ impl Default for LoggerUi {
             search_use_regex: false,
             max_log_length: 1000,
             style: LoggerStyle::default(),
+            search_cache: Vec::new(),
         }
     }
 }
@@ -337,12 +340,15 @@ impl LoggerUi {
             }
         });
 
+        let mut search_changed = false;
         if self.style.enable_search {
             ui.horizontal(|ui| {
                 ui.label("Search: ");
                 let response = ui.text_edit_singleline(&mut self.search_term);
 
-                let mut config_changed = false;
+                if response.changed() {
+                    search_changed = true;
+                }
 
                 if ui
                     .selectable_label(self.search_case_sensitive, "Aa")
@@ -350,7 +356,7 @@ impl LoggerUi {
                     .clicked()
                 {
                     self.search_case_sensitive = !self.search_case_sensitive;
-                    config_changed = true;
+                    search_changed = true;
                 }
 
                 if self.style.enable_regex
@@ -360,13 +366,10 @@ impl LoggerUi {
                         .clicked()
                 {
                     self.search_use_regex = !self.search_use_regex;
-                    config_changed = true;
+                    search_changed = true;
                 }
 
-                if self.style.enable_regex
-                    && self.search_use_regex
-                    && (response.changed() || config_changed)
-                {
+                if self.style.enable_regex && self.search_use_regex && search_changed {
                     self.regex = RegexBuilder::new(&self.search_term)
                         .case_insensitive(!self.search_case_sensitive)
                         .build()
@@ -384,37 +387,51 @@ impl LoggerUi {
 
         ui.separator();
 
-        let mut logs_displayed: usize = 0;
-
         let time_padding = logger.logs.last().map_or(0, |record| {
             format_time(record.time, &self.style, logger.start_time).len()
         });
 
-        let filtered_logs: Vec<&Record> = logger
+        // Update search cache if search config changed or logs were cleared
+        if search_changed || self.search_cache.len() > logger.logs.len() {
+            // Full rebuild: recompute all
+            self.search_cache.clear();
+            self.search_cache.reserve(logger.logs.len());
+            for record in &logger.logs {
+                let layout_job = format_record(logger, &self.style, record, time_padding);
+                self.search_cache
+                    .push(self.search_term.is_empty() || self.match_string(&layout_job.text));
+            }
+        } else {
+            // Incremental: only compute new logs
+            for record in logger.logs.iter().skip(self.search_cache.len()) {
+                let layout_job = format_record(logger, &self.style, record, time_padding);
+                self.search_cache
+                    .push(self.search_term.is_empty() || self.match_string(&layout_job.text));
+            }
+        }
+
+        // Pre-filter by level, category, and cached search result
+        let filtered_logs: Vec<(usize, &Record)> = logger
             .logs
             .iter()
-            .filter(|r| self.loglevels[r.level as usize - 1])
-            .filter(|record| !matches!(logger.categories.get(&record.target), Some(false)))
+            .enumerate()
+            .filter(|(_, r)| self.loglevels[r.level as usize - 1])
+            .filter(|(_, record)| !matches!(logger.categories.get(&record.target), Some(false)))
+            .filter(|(i, _)| self.search_cache.get(*i).copied().unwrap_or(true))
             .collect();
 
+        let logs_displayed = filtered_logs.len();
+
+        let row_height = ui.text_style_height(&egui::TextStyle::Monospace);
         egui::ScrollArea::vertical()
             .auto_shrink([false, false])
             .max_height(ui.available_height() - 30.0)
-            .show(ui, |ui| {
-                filtered_logs.iter().for_each(|record| {
+            .show_rows(ui, row_height, filtered_logs.len(), |ui, row_range| {
+                for i in row_range {
+                    let (_, record) = &filtered_logs[i];
                     let layout_job = format_record(logger, &self.style, record, time_padding);
 
-                    let raw_text = layout_job.text.clone();
-
-                    // Filter out log levels that are disabled via regex or log level
-                    // TODO: maybe filter this via filtereded_logs too?
-                    if (!self.search_term.is_empty() && !self.match_string(&raw_text))
-                        || !self.loglevels[record.level as usize - 1]
-                    {
-                        return;
-                    }
-
-                    let response = ui.label(layout_job);
+                    let response = ui.label(layout_job.clone());
 
                     if self.style.enable_ctx_menu {
                         response.clone().context_menu(|ui| {
@@ -429,13 +446,11 @@ impl LoggerUi {
                             });
 
                             if ui.button("Copy").clicked() {
-                                ui.ctx().copy_text(raw_text);
+                                ui.ctx().copy_text(layout_job.text.clone());
                             }
                         });
                     }
-
-                    logs_displayed += 1;
-                });
+                }
             });
 
         ui.horizontal(|ui| {
