@@ -73,7 +73,10 @@ impl eframe::App for BenchmarkApp {
 
         egui::Window::new("Log").show(ctx, |ui| {
             let start = Instant::now();
-            egui_logger::logger_ui().max_log_length(2000).show(ui);
+            egui_logger::logger_ui()
+                .enable_cache_layouts(true)
+                .max_log_length(2000)
+                .show(ui);
             let elapsed = start.elapsed().as_secs_f64() * 1000.0;
 
             if self.frame_times.len() >= 60 {

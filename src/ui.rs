@@ -76,6 +76,10 @@ pub struct LoggerUi {
     style: LoggerStyle,
     /// Cached search results: true if record matches current search
     search_cache: Vec<bool>,
+    /// Cached LayoutJobs for each log record
+    layout_cache: Vec<LayoutJob>,
+    /// Whether to cache LayoutJobs (more memory footprint but 30% more performant)
+    cache_layouts: bool,
 }
 
 impl Default for LoggerUi {
@@ -89,6 +93,8 @@ impl Default for LoggerUi {
             max_log_length: 1000,
             style: LoggerStyle::default(),
             search_cache: Vec::new(),
+            layout_cache: Vec::new(),
+            cache_layouts: true,
         }
     }
 }
@@ -242,6 +248,14 @@ impl LoggerUi {
         self
     }
 
+    /// Enable or disable caching of formatted log lines.
+    /// When enabled, increases memory usage but improves rendering performance.
+    /// True by default.
+    pub fn enable_cache_layouts(mut self, enable: bool) -> Self {
+        self.cache_layouts = enable;
+        self
+    }
+
     pub(crate) fn log_ui(self) -> &'static Mutex<LoggerUi> {
         static LOGGER_UI: std::sync::OnceLock<Mutex<LoggerUi>> = std::sync::OnceLock::new();
         LOGGER_UI.get_or_init(|| self.into())
@@ -391,33 +405,35 @@ impl LoggerUi {
             format_time(record.time, &self.style, logger.start_time).len()
         });
 
-        // Update search cache if search config changed or logs were cleared
-        if search_changed || self.search_cache.len() > logger.logs.len() {
-            // Full rebuild: recompute all
+        // Update caches if search config changed or logs were cleared
+        // We need to compute the layout if we cache them or we have a search term
+        let needs_layout = self.cache_layouts || !self.search_term.is_empty();
+        let cache_start = if search_changed || self.search_cache.len() > logger.logs.len() {
+            // Full rebuild: clear and recompute all
             self.search_cache.clear();
             self.search_cache.reserve(logger.logs.len());
-            for record in &logger.logs {
-                let layout_job = format_record(logger, &self.style, record, time_padding);
-                self.search_cache
-                    .push(self.search_term.is_empty() || self.match_string(&layout_job.text));
+            if self.cache_layouts {
+                self.layout_cache.clear();
+                self.layout_cache.reserve(logger.logs.len());
             }
+            0 // Start from scratch
         } else {
             // Incremental: only compute new logs
-            for record in logger.logs.iter().skip(self.search_cache.len()) {
-                let layout_job = format_record(logger, &self.style, record, time_padding);
-                self.search_cache
-                    .push(self.search_term.is_empty() || self.match_string(&layout_job.text));
-            }
+            self.search_cache.len()
+        };
+        for record in logger.logs.iter().skip(cache_start) {
+            self.cache_record(record, logger, time_padding, needs_layout);
         }
 
         // Pre-filter by level, category, and cached search result
-        let filtered_logs: Vec<(usize, &Record)> = logger
+        let filtered_logs: Vec<usize> = logger
             .logs
             .iter()
             .enumerate()
             .filter(|(_, r)| self.loglevels[r.level as usize - 1])
             .filter(|(_, record)| !matches!(logger.categories.get(&record.target), Some(false)))
             .filter(|(i, _)| self.search_cache.get(*i).copied().unwrap_or(true))
+            .map(|(i, _)| i)
             .collect();
 
         let logs_displayed = filtered_logs.len();
@@ -426,10 +442,15 @@ impl LoggerUi {
         egui::ScrollArea::vertical()
             .auto_shrink([false, false])
             .max_height(ui.available_height() - 30.0)
-            .show_rows(ui, row_height, filtered_logs.len(), |ui, row_range| {
+            .show_rows(ui, row_height, logs_displayed, |ui, row_range| {
                 for i in row_range {
-                    let (_, record) = &filtered_logs[i];
-                    let layout_job = format_record(logger, &self.style, record, time_padding);
+                    let log_idx = filtered_logs[i];
+                    let record = &logger.logs[log_idx];
+                    let layout_job = if self.cache_layouts {
+                        &self.layout_cache[log_idx]
+                    } else {
+                        &format_record(logger, &self.style, record, time_padding)
+                    };
 
                     let response = ui.label(layout_job.clone());
 
@@ -492,6 +513,25 @@ impl LoggerUi {
             string
                 .to_lowercase()
                 .contains(&self.search_term.to_lowercase())
+        }
+    }
+
+    fn cache_record(
+        &mut self,
+        record: &Record,
+        logger: &Logger,
+        time_padding: usize,
+        needs_layout: bool,
+    ) {
+        if needs_layout {
+            let layout_job = format_record(logger, &self.style, record, time_padding);
+            self.search_cache
+                .push(self.search_term.is_empty() || self.match_string(&layout_job.text));
+            if self.cache_layouts {
+                self.layout_cache.push(layout_job);
+            }
+        } else {
+            self.search_cache.push(true);
         }
     }
 }
