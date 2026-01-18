@@ -277,14 +277,25 @@ impl LoggerUi {
             return;
         };
 
-        {
-            let dropped_entries = logger.logs.len().saturating_sub(self.max_log_length);
-            drop(logger.logs.drain(..dropped_entries));
+        let dropped_entries = logger.logs.len().saturating_sub(self.max_log_length);
+        drop(logger.logs.drain(..dropped_entries));
+
+        // Sync cache with drained logs - remove stale entries from front
+        // New logs will be appended later depending on the search ui response.
+        if dropped_entries > 0 {
+            let drain_count = dropped_entries.min(self.search_cache.len());
+            drop(self.search_cache.drain(..drain_count));
+            if self.cache_layouts {
+                let layout_drain = dropped_entries.min(self.layout_cache.len());
+                drop(self.layout_cache.drain(..layout_drain));
+            }
         }
 
         ui.horizontal(|ui| {
             if ui.button("Clear").clicked() {
                 logger.logs.clear();
+                self.search_cache.clear();
+                self.layout_cache.clear();
             }
 
             if self.style.enable_levels_button {
@@ -405,25 +416,16 @@ impl LoggerUi {
             format_time(record.time, &self.style, logger.start_time).len()
         });
 
-        // Update caches if search config changed or logs were cleared
-        // We need to compute the layout if we cache them or we have a search term
-        let needs_layout = self.cache_layouts || !self.search_term.is_empty();
-        let cache_start = if search_changed || self.search_cache.len() > logger.logs.len() {
-            // Full rebuild: clear and recompute all
-            self.search_cache.clear();
-            self.search_cache.reserve(logger.logs.len());
-            if self.cache_layouts {
-                self.layout_cache.clear();
-                self.layout_cache.reserve(logger.logs.len());
+        // Add new records to the cache layout if enabled.
+        if self.cache_layouts {
+            for record in logger.logs.iter().skip(self.layout_cache.len()) {
+                self.layout_cache
+                    .push(format_record(logger, &self.style, record, time_padding));
             }
-            0 // Start from scratch
-        } else {
-            // Incremental: only compute new logs
-            self.search_cache.len()
-        };
-        for record in logger.logs.iter().skip(cache_start) {
-            self.cache_record(record, logger, time_padding, needs_layout);
         }
+
+        // Update search cache with new records, or rebuilds it if search content changed.
+        self.update_search_cache(logger, time_padding, search_changed);
 
         // Pre-filter by level, category, and cached search result
         let filtered_logs: Vec<usize> = logger
@@ -516,22 +518,36 @@ impl LoggerUi {
         }
     }
 
-    fn cache_record(
-        &mut self,
-        record: &Record,
-        logger: &Logger,
-        time_padding: usize,
-        needs_layout: bool,
-    ) {
-        if needs_layout {
-            let layout_job = format_record(logger, &self.style, record, time_padding);
+    fn update_search_cache(&mut self, logger: &Logger, time_padding: usize, full_rebuild: bool) {
+        let start = if full_rebuild {
+            self.search_cache.clear();
+            self.search_cache.reserve(logger.logs.len());
+            0
+        } else {
+            self.search_cache.len()
+        };
+
+        let new_count = logger.logs.len() - start;
+        if new_count == 0 {
+            return;
+        }
+
+        if self.search_term.is_empty() {
             self.search_cache
-                .push(self.search_term.is_empty() || self.match_string(&layout_job.text));
-            if self.cache_layouts {
-                self.layout_cache.push(layout_job);
+                .extend(std::iter::repeat_n(true, new_count));
+            return;
+        }
+
+        // Use layout cache if available, otherwise format each record
+        if self.cache_layouts && self.layout_cache.len() == logger.logs.len() {
+            for layout in self.layout_cache.iter().skip(start) {
+                self.search_cache.push(self.match_string(&layout.text));
             }
         } else {
-            self.search_cache.push(true);
+            for record in logger.logs.iter().skip(start) {
+                let text = format_record(logger, &self.style, record, time_padding).text;
+                self.search_cache.push(self.match_string(&text));
+            }
         }
     }
 }
