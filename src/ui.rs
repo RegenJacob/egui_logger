@@ -291,6 +291,9 @@ impl LoggerUi {
             }
         }
 
+        // Set to true if either the search term or the time format/precision changed (since that affects the formatted string)
+        let mut search_changed = false;
+
         ui.horizontal(|ui| {
             if ui.button("Clear").clicked() {
                 logger.logs.clear();
@@ -336,36 +339,48 @@ impl LoggerUi {
 
             if self.style.enable_time_button {
                 ui.menu_button("Time", |ui| {
-                    ui.radio_value(&mut self.style.time_format, TimeFormat::Utc, "UTC");
-                    ui.radio_value(
-                        &mut self.style.time_format,
-                        TimeFormat::LocalTime,
-                        "Local Time",
-                    );
-                    ui.radio_value(
-                        &mut self.style.time_format,
-                        TimeFormat::SinceStart,
-                        "Since Start",
-                    );
-                    ui.radio_value(&mut self.style.time_format, TimeFormat::Hide, "Hide");
+                    search_changed |= ui
+                        .radio_value(&mut self.style.time_format, TimeFormat::Utc, "UTC")
+                        .changed();
+
+                    search_changed |= ui
+                        .radio_value(
+                            &mut self.style.time_format,
+                            TimeFormat::LocalTime,
+                            "Local Time",
+                        )
+                        .changed();
+                    search_changed |= ui
+                        .radio_value(
+                            &mut self.style.time_format,
+                            TimeFormat::SinceStart,
+                            "Since Start",
+                        )
+                        .changed();
+                    search_changed |= ui
+                        .radio_value(&mut self.style.time_format, TimeFormat::Hide, "Hide")
+                        .changed();
 
                     ui.separator();
 
-                    ui.radio_value(
-                        &mut self.style.time_precision,
-                        TimePrecision::Seconds,
-                        "Seconds",
-                    );
-                    ui.radio_value(
-                        &mut self.style.time_precision,
-                        TimePrecision::Milliseconds,
-                        "Milliseconds",
-                    );
+                    search_changed |= ui
+                        .radio_value(
+                            &mut self.style.time_precision,
+                            TimePrecision::Seconds,
+                            "Seconds",
+                        )
+                        .changed();
+                    search_changed |= ui
+                        .radio_value(
+                            &mut self.style.time_precision,
+                            TimePrecision::Milliseconds,
+                            "Milliseconds",
+                        )
+                        .changed();
                 });
             }
         });
 
-        let mut search_changed = false;
         if self.style.enable_search {
             ui.horizontal(|ui| {
                 ui.label("Search: ");
@@ -416,15 +431,10 @@ impl LoggerUi {
             format_time(record.time, &self.style, logger.start_time).len()
         });
 
-        // Add new records to the cache layout if enabled.
+        // Update layouts and search cache with new records, or rebuilds it if search content / time format changed.
         if self.cache_layouts {
-            for record in logger.logs.iter().skip(self.layout_cache.len()) {
-                self.layout_cache
-                    .push(format_record(logger, &self.style, record, time_padding));
-            }
+            self.update_layout_cache(logger, time_padding, search_changed);
         }
-
-        // Update search cache with new records, or rebuilds it if search content changed.
         self.update_search_cache(logger, time_padding, search_changed);
 
         // Pre-filter by level, category, and cached search result
@@ -518,35 +528,43 @@ impl LoggerUi {
         }
     }
 
+    fn update_layout_cache(&mut self, logger: &Logger, time_padding: usize, full_rebuild: bool) {
+        let start = if full_rebuild {
+            self.layout_cache.clear();
+            0
+        } else {
+            self.layout_cache.len()
+        };
+
+        for record in logger.logs.iter().skip(start) {
+            let job = format_record(logger, &self.style, record, time_padding);
+            self.layout_cache.push(job);
+        }
+    }
+
     fn update_search_cache(&mut self, logger: &Logger, time_padding: usize, full_rebuild: bool) {
         let start = if full_rebuild {
             self.search_cache.clear();
-            self.search_cache.reserve(logger.logs.len());
             0
         } else {
             self.search_cache.len()
         };
 
-        let new_count = logger.logs.len() - start;
-        if new_count == 0 {
-            return;
-        }
-
         if self.search_term.is_empty() {
+            // Search result is always true as there is no search term.
             self.search_cache
-                .extend(std::iter::repeat_n(true, new_count));
-            return;
-        }
-
-        // Use layout cache if available, otherwise format each record
-        if self.cache_layouts && self.layout_cache.len() == logger.logs.len() {
-            for layout in self.layout_cache.iter().skip(start) {
-                self.search_cache.push(self.match_string(&layout.text));
-            }
+                .extend(std::iter::repeat_n(true, logger.logs.len() - start));
         } else {
-            for record in logger.logs.iter().skip(start) {
-                let text = format_record(logger, &self.style, record, time_padding).text;
-                self.search_cache.push(self.match_string(&text));
+            // Use layout cache if available, otherwise format each record
+            if self.cache_layouts {
+                for layout in self.layout_cache.iter().skip(start) {
+                    self.search_cache.push(self.match_string(&layout.text));
+                }
+            } else {
+                for record in logger.logs.iter().skip(start) {
+                    let job = format_record(logger, &self.style, record, time_padding);
+                    self.search_cache.push(self.match_string(&job.text));
+                }
             }
         }
     }
