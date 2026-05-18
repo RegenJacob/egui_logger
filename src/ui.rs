@@ -80,6 +80,8 @@ pub struct LoggerUi {
     layout_cache: Vec<LayoutJob>,
     /// Whether to cache LayoutJobs (more memory footprint but 30% more performant)
     cache_layouts: bool,
+    /// Wheter ui should automatically scroll to the bottom when new logs are added
+    autoscroll: bool,
 }
 
 impl Default for LoggerUi {
@@ -95,6 +97,7 @@ impl Default for LoggerUi {
             search_cache: Vec::new(),
             layout_cache: Vec::new(),
             cache_layouts: true,
+            autoscroll: false,
         }
     }
 }
