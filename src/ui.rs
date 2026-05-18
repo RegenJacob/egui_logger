@@ -143,6 +143,14 @@ impl LoggerUi {
         self
     }
 
+    /// Enable or disable automatically scrolling to the bottom when new logs are added.
+    /// False by default.
+    #[inline]
+    pub fn enable_autoscroll(mut self, enable: bool) -> Self {
+        self.autoscroll = enable;
+        self
+    }
+
     /// Enable or disable the copy button.
     /// True by default.
     #[inline]
