@@ -465,6 +465,7 @@ impl LoggerUi {
         egui::ScrollArea::vertical()
             .auto_shrink([false, false])
             .max_height(ui.available_height() - 30.0)
+            .stick_to_bottom(self.autoscroll)
             .show_rows(ui, row_height, logs_displayed, |ui, row_range| {
                 for i in row_range {
                     let log_idx = filtered_logs[i];
