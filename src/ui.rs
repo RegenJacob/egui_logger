@@ -80,6 +80,8 @@ pub struct LoggerUi {
     layout_cache: Vec<LayoutJob>,
     /// Whether to cache LayoutJobs (more memory footprint but 30% more performant)
     cache_layouts: bool,
+    /// Wheter ui should automatically scroll to the bottom when new logs are added
+    autoscroll: bool,
 }
 
 impl Default for LoggerUi {
@@ -95,6 +97,7 @@ impl Default for LoggerUi {
             search_cache: Vec::new(),
             layout_cache: Vec::new(),
             cache_layouts: true,
+            autoscroll: false,
         }
     }
 }
@@ -137,6 +140,14 @@ impl LoggerUi {
     #[inline]
     pub fn include_level(mut self, enable: bool) -> Self {
         self.style.include_level = enable;
+        self
+    }
+
+    /// Enable or disable automatically scrolling to the bottom when new logs are added.
+    /// False by default.
+    #[inline]
+    pub fn enable_autoscroll(mut self, enable: bool) -> Self {
+        self.autoscroll = enable;
         self
     }
 
@@ -454,6 +465,7 @@ impl LoggerUi {
         egui::ScrollArea::vertical()
             .auto_shrink([false, false])
             .max_height(ui.available_height() - 30.0)
+            .stick_to_bottom(self.autoscroll)
             .show_rows(ui, row_height, logs_displayed, |ui, row_range| {
                 for i in row_range {
                     let log_idx = filtered_logs[i];
