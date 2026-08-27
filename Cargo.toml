@@ -15,12 +15,12 @@ puffin = ["dep:puffin"]
 
 [dependencies]
 log = "0.4"
-egui = "0.35"
+egui = "0.36"
 regex = "1.12"
 puffin = { version = "0.20",  optional = true }
 
 [dev-dependencies]
-eframe = "0.35"
+eframe = "0.36"
 multi_log = "0.1"
 env_logger = "0.11"
 puffin_egui = { version = "0.30.0" }

@@ -329,13 +329,13 @@ impl LoggerUi {
             if self.style.enable_categories_button {
                 ui.menu_button("Categories", |ui| {
                     if ui.button("Select All").clicked() {
-                        for (_, enabled) in logger.categories.iter_mut() {
+                        for enabled in logger.categories.values_mut() {
                             *enabled = true;
                         }
                     }
 
                     if ui.button("Unselect All").clicked() {
-                        for (_, enabled) in logger.categories.iter_mut() {
+                        for enabled in logger.categories.values_mut() {
                             *enabled = false;
                         }
                     }
