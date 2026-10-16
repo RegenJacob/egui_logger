@@ -1,3 +1,4 @@
+#![allow(clippy::needless_doctest_main)]
 #![doc = include_str!("../README.md")]
 mod ui;
 
@@ -188,7 +189,6 @@ pub fn clear_logs() {
 /// Example:
 /// ```rust
 /// use log::LevelFilter;
-/// # #[allow(clippy::needless_doctest_main)]
 /// fn main() {
 ///     // Initialize the logger.
 ///     // You have to open the ui later within your egui context logic.
