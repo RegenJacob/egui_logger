@@ -1,6 +1,6 @@
 [package]
 name = "egui_logger"
-version = "0.12.0"
+version = "0.13.0"
 edition = "2024"
 authors = ["Jacob <RegenJacob@gmx.de>"]
 license = "MIT"
@@ -23,7 +23,6 @@ puffin = { version = "0.20",  optional = true }
 eframe = "0.37"
 multi_log = "0.1"
 env_logger = "0.11"
-puffin_egui = { version = "0.30.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 chrono = { version = "0.4", default-features = false, features = ["alloc", "clock"] }
@@ -31,10 +30,3 @@ chrono = { version = "0.4", default-features = false, features = ["alloc", "cloc
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 chrono = { version = "0.4", default-features = false, features = ["alloc", "clock", "wasmbind"] }
 
-[[example]]
-name = "puffin"
-required-features = ["puffin"]
-
-[patch.crates-io]
-# It seems that puffin and puffin_egui are really outdated
-puffin_egui = { git = "https://github.com/EmbarkStudios/puffin.git", rev = "7e08a533f9debfb7d051547263d2ab84c666314f" }
