@@ -284,7 +284,7 @@ impl LoggerUi {
     pub(crate) fn ui(&mut self, ui: &mut egui::Ui) {
         #[cfg(feature = "puffin")]
         puffin::profile_scope!("render logger UI");
-        let Ok(ref mut logger) = LOGGER.lock() else {
+        let Ok(mut logger) = LOGGER.lock() else {
             return;
         };
 
@@ -444,9 +444,9 @@ impl LoggerUi {
 
         // Update layouts and search cache with new records, or rebuilds it if search content / time format changed.
         if self.cache_layouts {
-            self.update_layout_cache(logger, time_padding, search_changed);
+            self.update_layout_cache(&logger, time_padding, search_changed);
         }
-        self.update_search_cache(logger, time_padding, search_changed);
+        self.update_search_cache(&logger, time_padding, search_changed);
 
         // Pre-filter by level, category, and cached search result
         let filtered_logs: Vec<usize> = logger
@@ -462,6 +462,11 @@ impl LoggerUi {
         let logs_displayed = filtered_logs.len();
 
         let row_height = ui.text_style_height(&egui::TextStyle::Monospace);
+        // Rendering the log list can cause egui to lock, which in turn would cause a deadlock
+        // while the logger is still locked.
+        // We avoid this by unlocking the mutex, and operating on a clone of the logger instead.
+        let logger_clone = logger.clone();
+        drop(logger);
         egui::ScrollArea::vertical()
             .auto_shrink([false, false])
             .max_height(ui.available_height() - 30.0)
@@ -469,11 +474,11 @@ impl LoggerUi {
             .show_rows(ui, row_height, logs_displayed, |ui, row_range| {
                 for i in row_range {
                     let log_idx = filtered_logs[i];
-                    let record = &logger.logs[log_idx];
+                    let record = &logger_clone.logs[log_idx];
                     let layout_job = if self.cache_layouts {
                         &self.layout_cache[log_idx]
                     } else {
-                        &format_record(logger, &self.style, record, time_padding)
+                        &format_record(&logger_clone, &self.style, record, time_padding)
                     };
 
                     let response = ui.label(layout_job.clone());
@@ -500,20 +505,26 @@ impl LoggerUi {
 
         ui.horizontal(|ui| {
             if self.style.enable_log_count {
-                ui.label(format!("Log size: {}", logger.logs.len()));
+                ui.label(format!("Log size: {}", logger_clone.logs.len()));
                 ui.label(format!("Displayed: {}", logs_displayed));
             }
             if self.style.enable_copy_button {
                 ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                     if ui.button("Copy").clicked() {
                         let mut out_string = String::new();
-                        logger
+                        logger_clone
                             .logs
                             .iter()
                             .take(self.max_log_length)
                             .for_each(|record| {
                                 out_string.push_str(
-                                    &format_record(logger, &self.style, record, time_padding).text,
+                                    &format_record(
+                                        &logger_clone,
+                                        &self.style,
+                                        record,
+                                        time_padding,
+                                    )
+                                    .text,
                                 );
                                 out_string.push_str(" \n");
                             });
