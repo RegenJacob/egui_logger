@@ -151,6 +151,7 @@ impl log::Log for EguiLogger {
     fn flush(&self) {}
 }
 
+#[derive(Clone)]
 struct Record {
     level: log::Level,
     message: String,
@@ -158,6 +159,7 @@ struct Record {
     time: chrono::DateTime<chrono::Local>,
 }
 
+#[derive(Clone)]
 struct Logger {
     logs: Vec<Record>,
     categories: HashMap<String, bool>,
