@@ -462,7 +462,7 @@ impl LoggerUi {
         let logs_displayed = filtered_logs.len();
 
         let row_height = ui.text_style_height(&egui::TextStyle::Monospace);
-        // Rendering the log list can cause egui to lock, which in turn would cause a deadlock
+        // Rendering the log list can cause egui to log, which in turn would cause a deadlock
         // while the logger is still locked.
         // We avoid this by unlocking the mutex, and operating on a clone of the logger instead.
         let logger_clone = logger.clone();
