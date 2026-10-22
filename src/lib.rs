@@ -129,21 +129,31 @@ impl log::Log for EguiLogger {
     }
 
     fn log(&self, record: &log::Record) {
-        if self.enabled(record.metadata())
-            && let Ok(ref mut logger) = LOGGER.lock()
-        {
-            logger.logs.push(Record {
+        if self.enabled(record.metadata()) {
+            let new_record = Record {
                 level: record.level(),
                 message: record.args().to_string(),
                 target: record.target().to_string(),
                 time: chrono::Local::now(),
-            });
+            };
 
-            if !logger.categories.contains_key(record.target()) {
-                logger
-                    .categories
-                    .insert(record.target().to_string(), self.show_all_categories);
-                logger.max_category_length = logger.max_category_length.max(record.target().len());
+            match LOGGER.try_lock() {
+                Ok(ref mut logger) => {
+                    logger.logs.push(new_record);
+
+                    if !logger.categories.contains_key(record.target()) {
+                        logger
+                            .categories
+                            .insert(record.target().to_string(), self.show_all_categories);
+                        logger.max_category_length =
+                            logger.max_category_length.max(record.target().len());
+                    }
+                }
+                Err(std::sync::TryLockError::WouldBlock) => {
+                    PENDING_LOGS.lock().unwrap().push(new_record);
+                },
+                Err(std::sync::TryLockError::Poisoned(_)) => {
+                }
             }
         }
     }
@@ -172,6 +182,8 @@ static LOGGER: LazyLock<Mutex<Logger>> = LazyLock::new(|| {
         start_time: chrono::Local::now(),
     })
 });
+
+static PENDING_LOGS: Mutex<Vec<Record>> = Mutex::new(Vec::new());
 
 /// Clears all existing retained logs.
 pub fn clear_logs() {

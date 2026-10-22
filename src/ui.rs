@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use egui::{Align, Color32, FontSelection, RichText, Style, text::LayoutJob};
 use regex::{Regex, RegexBuilder};
 
-use crate::{LEVELS, LOGGER, Logger, Record};
+use crate::{LEVELS, LOGGER, Logger, PENDING_LOGS, Record};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum TimePrecision {
@@ -284,9 +284,19 @@ impl LoggerUi {
     pub(crate) fn ui(&mut self, ui: &mut egui::Ui) {
         #[cfg(feature = "puffin")]
         puffin::profile_scope!("render logger UI");
-        let Ok(ref mut logger) = LOGGER.lock() else {
+        let Ok(ref mut logger) = LOGGER.try_lock() else {
             return;
         };
+
+        let pending = {
+            let mut pending = PENDING_LOGS.lock().unwrap();
+            std::mem::take(&mut *pending)
+        };
+
+        for record in pending {
+            // Insert into logger.logs and update categories.
+            logger.logs.push(record);
+        }
 
         let dropped_entries = logger.logs.len().saturating_sub(self.max_log_length);
         drop(logger.logs.drain(..dropped_entries));

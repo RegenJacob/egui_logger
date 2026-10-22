@@ -27,7 +27,7 @@ impl eframe::App for MyApp {
                 log::debug!("Very verbose Debug Info")
             }
             if ui.button("This produces an Info").clicked() {
-                log::info!("Some Info");
+                log::info!("Some Info ℹ️");
             }
             if ui.button("This produces an Error").clicked() {
                 log::error!("Error doing Something");
