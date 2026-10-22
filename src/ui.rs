@@ -284,17 +284,19 @@ impl LoggerUi {
     pub(crate) fn ui(&mut self, ui: &mut egui::Ui) {
         #[cfg(feature = "puffin")]
         puffin::profile_scope!("render logger UI");
-        let Ok(ref mut logger) = LOGGER.try_lock() else {
+        let Ok(ref mut logger) = LOGGER.lock() else {
             return;
         };
 
-        let pending = {
-            let mut pending = PENDING_LOGS.lock().unwrap();
-            std::mem::take(&mut *pending)
-        };
+        let pending = std::mem::take(&mut *PENDING_LOGS.lock().expect("Can't lock PENDING_LOGS"));
 
-        for record in pending {
-            // Insert into logger.logs and update categories.
+        for (record, show_all) in pending {
+            if !logger.categories.contains_key(&record.target) {
+                logger
+                    .categories
+                    .insert(record.target.to_string(), show_all);
+                logger.max_category_length = logger.max_category_length.max(record.target.len());
+            }
             logger.logs.push(record);
         }
 

@@ -150,9 +150,19 @@ impl log::Log for EguiLogger {
                     }
                 }
                 Err(std::sync::TryLockError::WouldBlock) => {
-                    PENDING_LOGS.lock().unwrap().push(new_record);
+                    PENDING_LOGS.lock().unwrap().push((new_record, self.show_all_categories));
                 },
-                Err(std::sync::TryLockError::Poisoned(_)) => {
+                Err(std::sync::TryLockError::Poisoned(e)) => {
+                    let mut logger = e.into_inner();
+                    logger.logs.push(new_record);
+
+                    if !logger.categories.contains_key(record.target()) {
+                        logger
+                            .categories
+                            .insert(record.target().to_string(), self.show_all_categories);
+                        logger.max_category_length =
+                            logger.max_category_length.max(record.target().len());
+                    }
                 }
             }
         }
@@ -183,7 +193,7 @@ static LOGGER: LazyLock<Mutex<Logger>> = LazyLock::new(|| {
     })
 });
 
-static PENDING_LOGS: Mutex<Vec<Record>> = Mutex::new(Vec::new());
+static PENDING_LOGS: Mutex<Vec<(Record, bool)>> = Mutex::new(Vec::new());
 
 /// Clears all existing retained logs.
 pub fn clear_logs() {
