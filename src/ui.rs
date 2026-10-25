@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use egui::{Align, Color32, FontSelection, RichText, Style, text::LayoutJob};
 use regex::{Regex, RegexBuilder};
 
-use crate::{LEVELS, LOGGER, Logger, Record};
+use crate::{LEVELS, LOGGER, Logger, PENDING_LOGS, Record};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum TimePrecision {
@@ -287,6 +287,12 @@ impl LoggerUi {
         let Ok(ref mut logger) = LOGGER.lock() else {
             return;
         };
+
+        let pending = std::mem::take(&mut *PENDING_LOGS.lock().expect("Can't lock PENDING_LOGS"));
+
+        for (record, show_all) in pending {
+            crate::register_logger(logger, record, show_all);
+        }
 
         let dropped_entries = logger.logs.len().saturating_sub(self.max_log_length);
         drop(logger.logs.drain(..dropped_entries));
