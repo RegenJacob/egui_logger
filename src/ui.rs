@@ -291,13 +291,7 @@ impl LoggerUi {
         let pending = std::mem::take(&mut *PENDING_LOGS.lock().expect("Can't lock PENDING_LOGS"));
 
         for (record, show_all) in pending {
-            if !logger.categories.contains_key(&record.target) {
-                logger
-                    .categories
-                    .insert(record.target.to_string(), show_all);
-                logger.max_category_length = logger.max_category_length.max(record.target.len());
-            }
-            logger.logs.push(record);
+            crate::register_logger(logger, record, show_all);
         }
 
         let dropped_entries = logger.logs.len().saturating_sub(self.max_log_length);

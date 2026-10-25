@@ -139,36 +139,34 @@ impl log::Log for EguiLogger {
 
             match LOGGER.try_lock() {
                 Ok(ref mut logger) => {
-                    logger.logs.push(new_record);
-
-                    if !logger.categories.contains_key(record.target()) {
-                        logger
-                            .categories
-                            .insert(record.target().to_string(), self.show_all_categories);
-                        logger.max_category_length =
-                            logger.max_category_length.max(record.target().len());
-                    }
+                    register_logger(logger, new_record, self.show_all_categories);
                 }
                 Err(std::sync::TryLockError::WouldBlock) => {
-                    PENDING_LOGS.lock().unwrap().push((new_record, self.show_all_categories));
-                },
+                    PENDING_LOGS
+                        .lock()
+                        .unwrap()
+                        .push((new_record, self.show_all_categories));
+                }
                 Err(std::sync::TryLockError::Poisoned(e)) => {
                     let mut logger = e.into_inner();
-                    logger.logs.push(new_record);
-
-                    if !logger.categories.contains_key(record.target()) {
-                        logger
-                            .categories
-                            .insert(record.target().to_string(), self.show_all_categories);
-                        logger.max_category_length =
-                            logger.max_category_length.max(record.target().len());
-                    }
+                    LOGGER.clear_poison();
+                    register_logger(&mut logger, new_record, self.show_all_categories);
                 }
             }
         }
     }
 
     fn flush(&self) {}
+}
+
+pub(crate) fn register_logger(logger: &mut Logger, new_record: Record, show_all_categories: bool) {
+    if !logger.categories.contains_key(&new_record.target) {
+        logger
+            .categories
+            .insert(new_record.target.to_string(), show_all_categories);
+        logger.max_category_length = logger.max_category_length.max(new_record.target.len());
+    }
+    logger.logs.push(new_record);
 }
 
 struct Record {

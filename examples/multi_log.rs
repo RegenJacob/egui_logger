@@ -27,8 +27,8 @@ impl eframe::App for MultiLogApp {
             if ui.button("This produces Debug Info").clicked() {
                 log::debug!("Very verbose Debug Info")
             }
-            if ui.button("This produces an Info 😁 😆 😅 ").clicked() {
-                log::info!("Some Info 😁 😆 😅 ");
+            if ui.button("This produces an Info").clicked() {
+                log::info!("Some Info");
             }
             if ui.button("This produces an Error").clicked() {
                 log::error!("Error doing Something");
